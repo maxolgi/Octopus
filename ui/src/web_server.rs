@@ -9,8 +9,6 @@ use tokio_tungstenite::tungstenite::Message;
 
 const ENGINE_HOST: &str = "127.0.0.1";
 const ENGINE_OSC_OUT: u16 = 9000;
-const WEB_HTTP_PORT: u16 = 8080;
-const WEB_WS_PORT: u16 = 8081;
 
 const HTML_OCTOPUS: &str = include_str!("../../web_gui.html");
 const HTML_NEMO: &str = include_str!("../../web_gui_nemo.html");
@@ -266,14 +264,14 @@ pub struct WebServer {
 }
 
 impl WebServer {
-    pub fn start(engine_osc_in: u16) -> Result<Self, String> {
+    pub fn start(engine_osc_in: u16, http_port: u16, ws_port: u16) -> Result<Self, String> {
         let runtime = tokio::runtime::Runtime::new().map_err(|e| e.to_string())?;
 
         let (http_listener, ws_listener, udp) = runtime.block_on(async {
-            let http = TcpListener::bind(format!("0.0.0.0:{}", WEB_HTTP_PORT))
+            let http = TcpListener::bind(format!("0.0.0.0:{}", http_port))
                 .await
                 .map_err(|e| format!("HTTP bind: {}", e))?;
-            let ws = TcpListener::bind(format!("0.0.0.0:{}", WEB_WS_PORT))
+            let ws = TcpListener::bind(format!("0.0.0.0:{}", ws_port))
                 .await
                 .map_err(|e| format!("WS bind: {}", e))?;
             let udp = UdpSocket::bind(format!("{}:{}", ENGINE_HOST, ENGINE_OSC_OUT))
@@ -329,8 +327,8 @@ impl WebServer {
             });
         }
 
-        eprintln!("Web GUI: http://localhost:{}", WEB_HTTP_PORT);
-        eprintln!("WebSocket: ws://localhost:{}", WEB_WS_PORT);
+        eprintln!("Web GUI: http://localhost:{}", http_port);
+        eprintln!("WebSocket: ws://localhost:{}", ws_port);
         eprintln!("OSC bridge: engine:{} -> engine:{}", engine_osc_in, ENGINE_OSC_OUT);
 
         Ok(Self {

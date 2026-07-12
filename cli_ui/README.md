@@ -21,12 +21,20 @@ cargo build --release    # produces web_gui / web_gui.exe
 ./build/octopus &
 # (or ./build/nemo & for Nemo)
 
-# 2. Start the bridge
+# 2. Start the bridge (default: HTTP 8080, WS 8081)
 ./web_gui
 
 # 3. Open in browser
 # http://localhost:8080        (Octopus)
 # http://localhost:8080/nemo   (Nemo)
+```
+
+### Custom HTTP port
+
+```bash
+# Use port 3000 (WebSocket auto-set to 3001)
+./web_gui --http-port 3000
+# or: ./web_gui -p 3000
 ```
 
 ## How it works

@@ -148,6 +148,7 @@ fn run_list_midi(exe_dir: &Path) {
 fn run_nogui(args: &[String], exe_dir: &Path) {
     let mut variant = Variant::Octopus;
     let mut osc_port: u16 = 8000;
+    let mut http_port: u16 = 8080;
     let mut out_a: i32 = -1;
     let mut out_b: i32 = -1;
     let mut midi_in: i32 = -1;
@@ -157,6 +158,7 @@ fn run_nogui(args: &[String], exe_dir: &Path) {
         match args[i].as_str() {
             "--variant" if i + 1 < args.len() => { variant = Variant::from_str(&args[i + 1]); i += 1; }
             "--osc-port" if i + 1 < args.len() => { osc_port = args[i + 1].parse().unwrap_or(8000); i += 1; }
+            "--http-port" if i + 1 < args.len() => { http_port = args[i + 1].parse().unwrap_or(8080); i += 1; }
             "--out-a" if i + 1 < args.len() => { out_a = args[i + 1].parse().unwrap_or(-1); i += 1; }
             "--out-b" if i + 1 < args.len() => { out_b = args[i + 1].parse().unwrap_or(-1); i += 1; }
             "--in" if i + 1 < args.len() => { midi_in = args[i + 1].parse().unwrap_or(-1); i += 1; }
@@ -192,7 +194,8 @@ fn run_nogui(args: &[String], exe_dir: &Path) {
     };
 
     // Start web server
-    let mut web_server = match web_server::WebServer::start(osc_port) {
+    let ws_port = http_port + 1;
+    let mut web_server = match web_server::WebServer::start(osc_port, http_port, ws_port) {
         Ok(ws) => ws,
         Err(e) => {
             eprintln!("Failed to start web server: {}", e);
@@ -235,6 +238,7 @@ fn run_nogui(args: &[String], exe_dir: &Path) {
 struct LauncherApp {
     variant: Variant,
     osc_port: String,
+    http_port: String,
     out_a: i32,
     out_b: i32,
     midi_in: i32,
@@ -254,6 +258,7 @@ impl LauncherApp {
         let mut app = Self {
             variant: Variant::Octopus,
             osc_port: "8000".to_string(),
+            http_port: "8080".to_string(),
             out_a: -1,
             out_b: -1,
             midi_in: -1,
@@ -313,9 +318,11 @@ impl LauncherApp {
             None => { self.error = "Sequencer binary not found.".into(); return; }
         };
         let port: u16 = self.osc_port.parse().unwrap_or(8000);
+        let http_port: u16 = self.http_port.parse().unwrap_or(8080);
+        let ws_port = http_port + 1;
 
         // Start web server (in-process)
-        match web_server::WebServer::start(port) {
+        match web_server::WebServer::start(port, http_port, ws_port) {
             Ok(ws) => self.web_server = Some(ws),
             Err(e) => {
                 self.error = format!("Failed to start web server: {}", e);
@@ -379,7 +386,8 @@ impl LauncherApp {
     }
 
     fn open_browser(&self) {
-        let url = "http://localhost:8080";
+        let port: u16 = self.http_port.parse().unwrap_or(8080);
+        let url = format!("http://localhost:{}", port);
         #[cfg(target_os = "linux")]
         { let _ = Command::new("xdg-open").arg(url).spawn(); }
         #[cfg(target_os = "windows")]
@@ -447,6 +455,11 @@ impl eframe::App for LauncherApp {
             ui.horizontal(|ui| {
                 ui.label("OSC Port:");
                 ui.add_enabled(!running, egui::TextEdit::singleline(&mut self.osc_port).desired_width(60.0));
+            });
+
+            ui.horizontal(|ui| {
+                ui.label("Web Port:");
+                ui.add_enabled(!running, egui::TextEdit::singleline(&mut self.http_port).desired_width(60.0));
             });
 
             ui.add_space(8.0);
@@ -553,6 +566,7 @@ fn main() {
         eprintln!("  --nogui              Run without GUI (web server + sequencer only)");
         eprintln!("  --variant <name>     Octopus or Nemo (default: Octopus)");
         eprintln!("  --osc-port <n>       OSC port (default: 8000)");
+        eprintln!("  --http-port <n>      Web GUI HTTP port (default: 8080, WS = port+1)");
         eprintln!("  --out-a <id>         MIDI output A device ID");
         eprintln!("  --out-b <id>         MIDI output B device ID");
         eprintln!("  --in <id>            MIDI input device ID");

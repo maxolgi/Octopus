@@ -22,6 +22,7 @@ Opens a native window with:
 - **Variant picker** — Octopus or Nemo
 - **MIDI device pickers** — output A, output B, input (populated by querying the engine via `--list-midi`)
 - **OSC port** — defaults to 8000
+- **Web port** — defaults to 8080 (WebSocket auto-set to port+1)
 - **Start / Stop** — launches the engine binary and the embedded web server
 
 Once started, open `http://localhost:8080` in a browser for the control surface.
@@ -34,12 +35,14 @@ For use without a display (servers, CI, scripts):
 ./octopus_ui --nogui \
     --variant octopus \
     --osc-port 8000 \
+    --http-port 8080 \
     --out-a 0 \
     --out-b 1 \
     --in -1
 ```
 
 Launches the engine + web server, waits for Ctrl+C, then cleanly shuts down.
+The WebSocket port is automatically `http-port + 1`.
 
 ### List MIDI devices
 

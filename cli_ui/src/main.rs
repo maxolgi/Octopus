@@ -12,8 +12,7 @@ use tokio_tungstenite::tungstenite::Message;
 const ENGINE_HOST: &str = "127.0.0.1";
 const ENGINE_OSC_IN: u16 = 8000;
 const ENGINE_OSC_OUT: u16 = 9000;
-const WEB_HTTP_PORT: u16 = 8080;
-const WEB_WS_PORT: u16 = 8081;
+const DEFAULT_HTTP_PORT: u16 = 8080;
 
 // ============================================================
 // OSC pack / unpack
@@ -339,6 +338,30 @@ async fn osc_listener(udp: Arc<UdpSocket>, tx: broadcast::Sender<String>) {
 
 #[tokio::main]
 async fn main() {
+    let mut http_port: u16 = DEFAULT_HTTP_PORT;
+
+    let mut args = env::args().skip(1);
+    while let Some(arg) = args.next() {
+        match arg.as_str() {
+            "--http-port" | "-p" => {
+                if let Some(val) = args.next() {
+                    http_port = val.parse().unwrap_or(DEFAULT_HTTP_PORT);
+                }
+            }
+            "--help" | "-h" => {
+                println!("Usage: web_gui [options]\n");
+                println!("Options:");
+                println!("  --http-port <n>, -p <n>  Web GUI HTTP port (default: {}, WS = port+1)", DEFAULT_HTTP_PORT);
+                println!("  --help, -h               Show this help");
+                println!("\nThe engine (octopus/nemo) must be started separately.");
+                return;
+            }
+            _ => {}
+        }
+    }
+
+    let ws_port = http_port + 1;
+
     let html = Arc::new(read_html("web_gui.html"));
     let nemo_html = Arc::new(read_html("web_gui_nemo.html"));
 
@@ -350,8 +373,8 @@ async fn main() {
 
     let (tx, _) = broadcast::channel::<String>(256);
 
-    // HTTP server (port 8080)
-    let http_listener = TcpListener::bind(format!("0.0.0.0:{}", WEB_HTTP_PORT))
+    // HTTP server
+    let http_listener = TcpListener::bind(format!("0.0.0.0:{}", http_port))
         .await
         .expect("Failed to bind HTTP port");
     {
@@ -377,8 +400,8 @@ async fn main() {
         });
     }
 
-    // WebSocket server (port 8081)
-    let ws_listener = TcpListener::bind(format!("0.0.0.0:{}", WEB_WS_PORT))
+    // WebSocket server
+    let ws_listener = TcpListener::bind(format!("0.0.0.0:{}", ws_port))
         .await
         .expect("Failed to bind WebSocket port");
     {
@@ -395,8 +418,8 @@ async fn main() {
         });
     }
 
-    println!("Web GUI: http://localhost:{}", WEB_HTTP_PORT);
-    println!("WebSocket: ws://localhost:{}", WEB_WS_PORT);
+    println!("Web GUI: http://localhost:{}", http_port);
+    println!("WebSocket: ws://localhost:{}", ws_port);
     println!(
         "OSC bridge: engine:{} -> engine:{}",
         ENGINE_OSC_IN, ENGINE_OSC_OUT
