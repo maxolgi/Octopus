@@ -131,13 +131,22 @@ make clean
 
 ## Modifications to Original Firmware
 
-Only 5 files modified in the `firmware/` submodule (all minimal, guarded):
+20 files modified in the `firmware/` submodule (all minimal, guarded by `#ifdef`):
 
+**Core port (`patches/01`–`05`):**
 1. `includes-declarations.h` — swap eCos headers for `hal_linux.h`
-2. `Init_memory.h:638` — NULL guard in `PAGE_init()` (ARM hardware masked this bug)
-3. `cpu-load.c:16` — disable CPU load check on Linux/Windows (no hardware countdown timer)
-4. `play_MIDI.h:80` — `#ifdef __linux__` routing `MIDI_send()` to ALSA
-5. `show_hwdriver.h:36` — `#ifndef __linux__` suppressing hardware `VIEWER_show_MIR()`
+2. `Init_memory.h` — NULL guard in `PAGE_init()` (ARM hardware masked this bug)
+3. `cpu-load.c` — disable CPU load check on Linux/Windows (no hardware countdown timer)
+4. `play_MIDI.h` — `#ifdef __linux__` routing `MIDI_send()` to ALSA
+5. `show_hwdriver.h` — `#ifndef __linux__` suppressing hardware `VIEWER_show_MIR()`
+
+**Nemo build + additional (`patches/06`):**
+6. `defs_functions.h` — define `KEY/LED_RANDOMIZE` under `#ifdef NEMO`
+7. `includes-definitions.h` — add Nemo helper functions under `#ifdef NEMO`
+8. `OS_infrastructure.h` — wrap alarm creation in `#if !linux && !_WIN32`
+9. `Intr_KEY_functions.h` — fix `memset(MIR, 0, 204)` → `sizeof(MIR)`
+10. `Intr_TMR.h` — move MIDI clock to sequencer thread; add `g_tick_ns` precompute
+11–20. Various `key_*.h`, `Intr_KEY_GRID.h` — wrap `KEY_RANDOMIZE` / `KEY_MIXTGT_USR*` in `#ifndef NEMO`
 
 Patches are stored in `patches/`. See `scripts/setup-firmware.sh` for fork setup.
 

@@ -84,12 +84,24 @@ Key mappings: `cyg_thread_*` → pthread, `cyg_mbox_*` → pipe/ring-buffer, `cy
 
 ## Firmware modifications (minimal, guarded)
 
-Only 5 files modified from the original firmware, all via preprocessor guards. Patches are stored in `patches/` and applied to the `firmware/` submodule (a fork of `genoqs-community/source`):
+20 files modified from the original firmware, all via preprocessor guards. Patches are stored in `patches/` (files `01`–`05` are the core port patches, `06` covers Nemo build compat + additional Linux/Windows guards) and applied to the `firmware/` submodule (a fork of `genoqs-community/source`).
+
+**Core Linux/Windows port patches (`patches/01`–`05`):**
 1. `OCT_OS/_OCT_global/includes-declarations.h` — swaps eCos headers for `hal_linux.h`
 2. `OCT_OS/_OCT_init/Init_memory.h:638` — NULL guard in `PAGE_init()`
 3. `OCT_OS/_OCT_interrupts/cpu-load.c:16` — disables CPU load check on Linux/Windows
 4. `OCT_OS/_OCT_Player/play_MIDI.h:80` — `#ifdef __linux__` routes `MIDI_send()` to ALSA
 5. `OCT_OS/_OCT_Viewer/show_hwdriver.h:36` — `#ifndef __linux__` suppresses hardware `VIEWER_show_MIR()`
+
+**Nemo build + additional port patches (`patches/06`):**
+6. `OCT_OS/_OCT_global/defs_functions.h` — define `KEY/LED_RANDOMIZE` under `#ifdef NEMO`
+7. `OCT_OS/_OCT_global/includes-definitions.h` — add Nemo helper functions (`page_is_chain_follow`, `track_get_window_shift`) under `#ifdef NEMO`
+8. `OCT_OS/_OCT_init/OS_infrastructure.h` — wrap page refresh alarm creation in `#if !defined(__linux__) && !defined(_WIN32)`
+9. `OCT_OS/_OCT_interrupts/Intr_KEY_functions.h` — fix `memset(MIR, 0, 204)` → `memset(MIR, 0, sizeof(MIR))`
+10. `OCT_OS/_OCT_interrupts/Intr_TMR.h` — move MIDI clock to sequencer thread on Linux/Windows; add `g_tick_ns` precompute
+11–18. `OCT_OS/_OCT_exe_keys/key_GRID.h`, `key_MAP.h`, `key_PAGE_sel_NONE.h`, `key_PAGE_sel_NONE_BIRDSEYE.h`, `key_PAGE_sel_STEP.h`, `key_PAGE_sel_TRACK.h`, `key_STEP.h` — wrap `KEY_RANDOMIZE` cases in `#ifndef NEMO`; wrap `KEY_MIXTGT_USR1-4` in `#ifndef NEMO` (fixes duplicate case values)
+12. `OCT_OS/_OCT_interrupts/Intr_KEY_GRID.h` — wrap `KEY_RANDOMIZE` in `#ifndef NEMO`
+13. `OCT_OS/_OCT_Player/play_functions.h`, `play_play.h` — minor whitespace
 
 When modifying firmware files, use `#ifdef __linux__` / `#ifdef _WIN32` / `#ifndef __linux__` guards, not unconditional edits. Generate patches with `diff -u` from the submodule root and store in `patches/`.
 
