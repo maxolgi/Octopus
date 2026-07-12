@@ -131,22 +131,28 @@ make clean
 
 ## Modifications to Original Firmware
 
-20 files modified in the `firmware/` submodule (all minimal, guarded by `#ifdef`):
+20 files modified in the `firmware/` submodule (all minimal, guarded by `#ifdef`). Split across two patch files:
 
-**Core port (`patches/01`–`05`):**
-1. `includes-declarations.h` — swap eCos headers for `hal_linux.h`
-2. `Init_memory.h` — NULL guard in `PAGE_init()` (ARM hardware masked this bug)
-3. `cpu-load.c` — disable CPU load check on Linux/Windows (no hardware countdown timer)
-4. `play_MIDI.h` — `#ifdef __linux__` routing `MIDI_send()` to ALSA
-5. `show_hwdriver.h` — `#ifndef __linux__` suppressing hardware `VIEWER_show_MIR()`
+### Core port — `patches/01`–`05`
 
-**Nemo build + additional (`patches/06`):**
-6. `defs_functions.h` — define `KEY/LED_RANDOMIZE` under `#ifdef NEMO`
-7. `includes-definitions.h` — add Nemo helper functions under `#ifdef NEMO`
-8. `OS_infrastructure.h` — wrap alarm creation in `#if !linux && !_WIN32`
-9. `Intr_KEY_functions.h` — fix `memset(MIR, 0, 204)` → `sizeof(MIR)`
-10. `Intr_TMR.h` — move MIDI clock to sequencer thread; add `g_tick_ns` precompute
-11–20. Various `key_*.h`, `Intr_KEY_GRID.h` — wrap `KEY_RANDOMIZE` / `KEY_MIXTGT_USR*` in `#ifndef NEMO`
+- `includes-declarations.h` — swap eCos headers for `hal_linux.h`
+- `Init_memory.h` — NULL guard in `PAGE_init()` (ARM hardware masked this bug)
+- `cpu-load.c` — disable CPU load check on Linux/Windows (no hardware countdown timer)
+- `play_MIDI.h` — `#ifdef __linux__` routing `MIDI_send()` to ALSA
+- `show_hwdriver.h` — `#ifndef __linux__` suppressing hardware `VIEWER_show_MIR()`
+
+### Nemo build + additional — `patches/06`
+
+- `defs_functions.h` — define `KEY/LED_RANDOMIZE` under `#ifdef NEMO`
+- `includes-definitions.h` — add Nemo helper functions under `#ifdef NEMO`
+- `OS_infrastructure.h` — wrap alarm creation in `#if !linux && !_WIN32`
+- `Intr_KEY_functions.h` — fix `memset(MIR, 0, 204)` → `sizeof(MIR)`
+- `Intr_TMR.h` — move MIDI clock to sequencer thread; add `g_tick_ns` precompute
+- `key_GRID.h`, `key_MAP.h`, `key_STEP.h` — wrap `KEY_RANDOMIZE` in `#ifndef NEMO`
+- `key_PAGE_sel_NONE.h` — wrap `KEY_MIXTGT_USR1–4` in `#ifndef NEMO` (fixes duplicate case values)
+- `key_PAGE_sel_NONE_BIRDSEYE.h`, `key_PAGE_sel_STEP.h`, `key_PAGE_sel_TRACK.h` — wrap `KEY_RANDOMIZE` in `#ifndef NEMO`
+- `Intr_KEY_GRID.h` — wrap `KEY_RANDOMIZE` in `#ifndef NEMO`
+- `play_functions.h`, `play_play.h` — minor whitespace
 
 Patches are stored in `patches/`. See `scripts/setup-firmware.sh` for fork setup.
 
