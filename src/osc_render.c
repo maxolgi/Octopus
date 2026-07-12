@@ -233,6 +233,16 @@ void osc_render_init(const char *host, int port) {
     memset(prev_MIR, 0xFF, sizeof(prev_MIR));
 }
 
+void osc_render_update_target(const struct sockaddr_in *new_addr) {
+    if (new_addr && render_sockfd >= 0) {
+        char ipstr[INET_ADDRSTRLEN];
+        inet_ntop(AF_INET, &new_addr->sin_addr, ipstr, sizeof(ipstr));
+        fprintf(stderr, "osc_render: target updated to %s:%d\n",
+                ipstr, ntohs(new_addr->sin_port));
+        render_addr = *new_addr;
+    }
+}
+
 void osc_render_start(void) {
     render_running = 1;
     pthread_create(&render_pthread, NULL, render_thread_func, NULL);

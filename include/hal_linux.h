@@ -73,6 +73,9 @@ typedef void* hal_fd_t;
 #include <sys/ioctl.h>
 #include <time.h>
 #include <errno.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #endif
 
 /* ============================================================ */
@@ -404,5 +407,6 @@ extern void osc_server_stop(void);
 extern void osc_render_init(const char *host, int port);
 extern void osc_render_start(void);
 extern void osc_render_stop(void);
+extern void osc_render_update_target(const struct sockaddr_in *new_addr);
 
 #endif /* HAL_LINUX_H_ */

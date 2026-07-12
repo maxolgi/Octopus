@@ -444,11 +444,20 @@ static void *osc_thread_func(void *arg) {
 
     fprintf(stderr, "osc_server: listening on port %d\n", port);
 
+    struct sockaddr_in sender;
+    socklen_t sender_len;
+
     while (osc_running) {
-        ssize_t n = recv(osc_sockfd, buf, sizeof(buf), 0);
+        sender_len = sizeof(sender);
+        ssize_t n = recvfrom(osc_sockfd, buf, sizeof(buf), 0,
+                             (struct sockaddr *)&sender, &sender_len);
         if (n < 0) {
             if (OSC_ERRNO == OSC_EINTR) continue;
             break;
+        }
+
+        if (n > 0) {
+            osc_render_update_target(&sender);
         }
 
         osc_message_t msg;
