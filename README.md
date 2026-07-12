@@ -33,12 +33,12 @@ git submodule update --init
 
 The original firmware source is a git submodule at `firmware/` (a fork of
 [genoqs-community/source](https://github.com/genoqs-community/source) with
-5 minimal `#ifdef __linux__`/`_WIN32` patches in `patches/`).
+20 `#ifdef __linux__`/`_WIN32`/`NEMO` patches in `patches/`).
 
 The entire 65,000-line firmware compiles and runs on Linux via an eCos
 compatibility shim (`hal_linux.c`) that maps `cyg_*` APIs to pthreads, pipes,
 POSIX semaphores, and timerfd. No original firmware logic is modified (only
-5 minimal patches for NULL safety, CPU-load stub, and ALSA/winmm routing).
+20 minimal guarded patches for NULL safety, CPU-load stub, ALSA/winmm routing, and Nemo build compat).
 
 ### Modules
 
