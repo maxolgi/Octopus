@@ -414,7 +414,7 @@ alignChordButtons();
 
 // === WebSocket ===
 function connect(){
-  ws=new WebSocket(`ws://${location.hostname}:8081`);
+  ws=new WebSocket(`ws://${location.hostname}:${parseInt(location.port||80)+1}`);
   ws.onopen=()=>{document.getElementById('status').textContent='● Connected';document.getElementById('status').className='status st-on';};
   ws.onclose=()=>{document.getElementById('status').textContent='○ Reconnecting';document.getElementById('status').className='status';setTimeout(connect,1000);};
   ws.onmessage=(e)=>{const m=JSON.parse(e.data);handle(m.address,m.args);};

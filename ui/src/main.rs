@@ -391,7 +391,7 @@ impl LauncherApp {
         #[cfg(target_os = "linux")]
         { let _ = Command::new("xdg-open").arg(url).spawn(); }
         #[cfg(target_os = "windows")]
-        { let _ = Command::new("cmd").args(["/C", "start", url]).spawn(); }
+        { let _ = Command::new("cmd").args(["/C", "start", &url]).spawn(); }
         #[cfg(target_os = "macos")]
         { let _ = Command::new("open").arg(url).spawn(); }
     }
@@ -405,6 +405,11 @@ impl Drop for LauncherApp {
 
 impl eframe::App for LauncherApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // Kill sequencer before window closes — eframe may skip Drop on exit
+        if ctx.input(|i| i.viewport().close_requested()) {
+            self.stop();
+        }
+
         let running = self.is_running();
         if running != (self.status == "Running") {
             self.status = if running { "Running".into() } else { "Stopped".into() };
