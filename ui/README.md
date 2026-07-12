@@ -71,7 +71,7 @@ Prints available ALSA (or winmm) MIDI ports, then exits.
 
 ## vs. the other bridges
 
-| Feature | `octopus_ui` | `cli_ui` (`web_gui`) | `web_gui.py` |
+| Feature | `octopus_ui` | `cli_ui` | `web_gui.py` |
 |---|---|---|---|
 | Launches engine | Yes | No | No |
 | Native GUI | Yes (egui) | No | No |

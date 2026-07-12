@@ -45,7 +45,7 @@ The Rust UI launcher (`ui/src/main.rs`) finds and launches the C engine binary, 
 
 ### Rust web GUI bridge (standalone)
 ```bash
-cd cli_ui && cargo build --release    # produces web_gui / web_gui.exe
+cd cli_ui && cargo build --release    # produces cli_ui / cli_ui.exe
 ```
 Functionally identical to `web_gui.py` but with no Python dependency. Reads `web_gui.html` / `web_gui_nemo.html` at runtime from the current directory. Same ports (8080 HTTP, 8081 WebSocket, 8000/9000 OSC).
 
@@ -54,7 +54,7 @@ Functionally identical to `web_gui.py` but with no Python dependency. Reads `web
 powershell -ExecutionPolicy Bypass -File build_release.ps1   # Windows
 bash build_release.sh                                        # Linux
 ```
-Outputs to `dist/`: `octopus`, `nemo`, `octopus_ui`, `web_gui`.
+Outputs to `dist/`: `octopus`, `octopus_ui`.
 
 ## Architecture: single translation unit
 
@@ -123,9 +123,9 @@ python3 web_gui.py    # requires: pip3 install websockets
 ```
 Reads HTML files at runtime from the script directory. Serves `web_gui.html` (Octopus) at `/` and `web_gui_nemo.html` (Nemo) at `/nemo`.
 
-### 2. Rust standalone bridge (`cli_ui/` → binary `web_gui`)
+### 2. Rust standalone bridge (`cli_ui/` → binary `cli_ui`)
 ```bash
-./dist/web_gui    # or: cd cli_ui && cargo run
+./dist/cli_ui    # or: cd cli_ui && cargo run
 ```
 No Python dependency. Reads the same HTML files at runtime from the current directory. Functionally identical to the Python bridge.
 

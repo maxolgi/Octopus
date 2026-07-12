@@ -11,7 +11,7 @@ runtime (the files are NOT embedded — keep them next to the binary).
 ## Build
 
 ```bash
-cargo build --release    # produces web_gui / web_gui.exe
+cargo build --release    # produces cli_ui / cli_ui.exe
 ```
 
 ## Usage
@@ -22,7 +22,7 @@ cargo build --release    # produces web_gui / web_gui.exe
 # (or ./build/nemo & for Nemo)
 
 # 2. Start the bridge (default: HTTP 8080, WS 8081)
-./web_gui
+./cli_ui
 
 # 3. Open in browser
 # http://localhost:8080        (Octopus)
@@ -33,8 +33,8 @@ cargo build --release    # produces web_gui / web_gui.exe
 
 ```bash
 # Use port 3000 (WebSocket auto-set to 3001)
-./web_gui --http-port 3000
-# or: ./web_gui -p 3000
+./cli_ui --http-port 3000
+# or: ./cli_ui -p 3000
 ```
 
 ## How it works
@@ -59,7 +59,7 @@ All ports are hardcoded and must match the engine defaults.
 
 ## vs. the other bridges
 
-| Feature | `web_gui` | `octopus_ui` | `web_gui.py` |
+| Feature | `cli_ui` | `octopus_ui` | `web_gui.py` |
 |---|---|---|---|
 | Launches engine | No | Yes | No |
 | Native GUI | No | Yes (egui) | No |

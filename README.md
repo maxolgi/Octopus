@@ -131,7 +131,7 @@ cd ui && cargo build --release
 ./ui/target/release/octopus_ui --nogui --variant octopus
 ```
 
-### Rust standalone bridge — `cli_ui/` → `web_gui`
+### Rust standalone bridge — `cli_ui/` → `cli_ui`
 
 Same WebSocket ↔ OSC bridge as `web_gui.py` but no Python dependency. The engine
 must be started separately. See [`cli_ui/README.md`](cli_ui/README.md).
@@ -139,7 +139,7 @@ must be started separately. See [`cli_ui/README.md`](cli_ui/README.md).
 ```bash
 ./build/octopus &
 cd cli_ui && cargo build --release
-./cli_ui/target/release/web_gui
+./cli_ui/target/release/cli_ui
 ```
 
 ### Python bridge — `web_gui.py`
