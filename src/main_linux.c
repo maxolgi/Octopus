@@ -203,6 +203,45 @@ static BOOL WINAPI console_ctrl_handler(DWORD ctrl) {
 #endif
 
 /* ============================================================ */
+/* State save/load (PersistentV2 format)                         */
+/* ============================================================ */
+
+void save_state(const char *filepath) {
+    FILE *f = fopen(filepath, "wb");
+    if (!f) {
+        fprintf(stderr, "save_state: cannot write '%s'\n", filepath);
+        return;
+    }
+
+    extern void PersPageExport(const Pagestruct*, card8*, size_t);
+    extern void PersGridExport(card8*, size_t);
+
+    /* Write grid */
+    card8 gridBuf[sizeof(GridPersistentV2)];
+    memset(gridBuf, 0, sizeof(gridBuf));
+    PersGridExport(gridBuf, sizeof(GridPersistentV2));
+    fwrite("GRID", 1, 4, f);
+    unsigned sz = sizeof(GridPersistentV2);
+    fwrite(&sz, 4, 1, f);
+    fwrite(gridBuf, sz, 1, f);
+
+    /* Write each page */
+    unsigned int p;
+    for (p = 0; p < MAX_NROF_PAGES; p++) {
+        card8 pageBuf[sizeof(PagePersistentV2)];
+        memset(pageBuf, 0, sizeof(pageBuf));
+        PersPageExport(&Page_repository[p], pageBuf, sizeof(PagePersistentV2));
+        fwrite("PAGE", 1, 4, f);
+        sz = sizeof(PagePersistentV2);
+        fwrite(&sz, 4, 1, f);
+        fwrite(pageBuf, sz, 1, f);
+    }
+
+    fclose(f);
+    fprintf(stderr, "save_state: saved %u pages + grid to '%s'\n", MAX_NROF_PAGES, filepath);
+}
+
+/* ============================================================ */
 /* Main entry point                                             */
 /* ============================================================ */
 
@@ -210,12 +249,15 @@ int main(int argc, char **argv) {
     unsigned int pvalue = 0;
     int osc_port = 8000;
     int list_and_exit = 0;
+    int autosave = 0;
     int i;
 
     /* Parse command-line arguments */
     for (i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--list-midi") == 0 || strcmp(argv[i], "-l") == 0) {
             list_and_exit = 1;
+        } else if (strcmp(argv[i], "--autosave") == 0) {
+            autosave = 1;
         } else if ((strcmp(argv[i], "--out-a") == 0 || strcmp(argv[i], "--out_a") == 0) && i + 1 < argc) {
             midi_set_device(0, atoi(argv[++i]));
         } else if ((strcmp(argv[i], "--out-b") == 0 || strcmp(argv[i], "--out_b") == 0) && i + 1 < argc) {
@@ -233,6 +275,7 @@ int main(int argc, char **argv) {
                 "  --out-b <id>   Output port B device (default: -1=MIDI_MAPPER)\n"
                 "  --in <id>      Input device (default: 0)\n"
                 "  --osc-port <n> OSC server port (default: 8000)\n"
+                "  --autosave    Save state to octopus_state.bin on exit (default: off)\n"
                 "  --list-midi    List MIDI devices and exit\n"
                 "  --help         Show this help\n"
                 "\n"
@@ -416,37 +459,9 @@ int main(int argc, char **argv) {
     pthread_join(sequencer_pthread, NULL);
 #endif
 
-    /* Auto-save state using PersistentV2 format */
-    {
-        FILE *f = fopen("octopus_state.bin", "wb");
-        if (f) {
-            extern void PersPageExport(const Pagestruct*, card8*, size_t);
-            extern void PersGridExport(card8*, size_t);
-
-            /* Write grid */
-            card8 gridBuf[sizeof(GridPersistentV2)];
-            memset(gridBuf, 0, sizeof(gridBuf));
-            PersGridExport(gridBuf, sizeof(GridPersistentV2));
-            fwrite("GRID", 1, 4, f);
-            unsigned sz = sizeof(GridPersistentV2);
-            fwrite(&sz, 4, 1, f);
-            fwrite(gridBuf, sz, 1, f);
-
-            /* Write each page */
-            unsigned int p;
-            for (p = 0; p < MAX_NROF_PAGES; p++) {
-                card8 pageBuf[sizeof(PagePersistentV2)];
-                memset(pageBuf, 0, sizeof(pageBuf));
-                PersPageExport(&Page_repository[p], pageBuf, sizeof(PagePersistentV2));
-                fwrite("PAGE", 1, 4, f);
-                sz = sizeof(PagePersistentV2);
-                fwrite(&sz, 4, 1, f);
-                fwrite(pageBuf, sz, 1, f);
-            }
-
-            fclose(f);
-            fprintf(stderr, "main: state saved (%u pages + grid)\n", MAX_NROF_PAGES);
-        }
+    /* Auto-save state (only if --autosave flag was passed) */
+    if (autosave) {
+        save_state("octopus_state.bin");
     }
 
     fprintf(stderr, "main: done.\n");

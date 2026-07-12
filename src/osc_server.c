@@ -372,10 +372,9 @@ static void osc_dispatch(const osc_message_t *msg) {
         return;
     }
 
-    /* /octopus/save <filepath> — triggers main thread auto-save on exit */
+    /* /octopus/save — save state to octopus_state.bin (engine keeps running) */
     if (strcmp(msg->address, "/save") == 0) {
-        fprintf(stderr, "osc: state will be saved on exit\n");
-        main_running = 0;
+        save_state("octopus_state.bin");
         return;
     }
 

@@ -245,6 +245,7 @@ struct LauncherApp {
     osc_port: String,
     http_port: String,
     engine_host: String,
+    autosave: bool,
     out_a: i32,
     out_b: i32,
     midi_in: i32,
@@ -265,6 +266,7 @@ impl LauncherApp {
             osc_port: "8000".to_string(),
             http_port: "8080".to_string(),
             engine_host: "127.0.0.1".to_string(),
+            autosave: false,
             out_a: -1,
             out_b: -1,
             midi_in: -1,
@@ -329,8 +331,11 @@ impl LauncherApp {
             .arg("--osc-port").arg(port.to_string())
             .arg("--out-a").arg(self.out_a.to_string())
             .arg("--out-b").arg(self.out_b.to_string())
-            .arg("--in").arg(self.midi_in.to_string())
-            .stderr(Stdio::piped());
+            .arg("--in").arg(self.midi_in.to_string());
+        if self.autosave {
+            seq_cmd.arg("--autosave");
+        }
+        seq_cmd.stderr(Stdio::piped());
         #[cfg(windows)]
         seq_cmd.creation_flags(CREATE_NO_WINDOW);
 
@@ -536,6 +541,10 @@ impl eframe::App for LauncherApp {
                 ui.add_space(8.0);
                 let color = if engine_running { egui::Color32::from_rgb(0, 180, 0) } else { egui::Color32::from_rgb(180, 0, 0) };
                 ui.colored_label(color, format!("● Engine {}", if engine_running { "Running" } else { "Stopped" }));
+            });
+
+            ui.horizontal(|ui| {
+                ui.checkbox(&mut self.autosave, "Autosave on exit");
             });
 
             ui.add_space(4.0);

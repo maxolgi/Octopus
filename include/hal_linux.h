@@ -409,4 +409,9 @@ extern void osc_render_start(void);
 extern void osc_render_stop(void);
 extern void osc_render_update_target(const struct sockaddr_in *new_addr);
 
+/* ============================================================ */
+/* State persistence — implemented in main_linux.c              */
+/* ============================================================ */
+extern void save_state(const char *filepath);
+
 #endif /* HAL_LINUX_H_ */
