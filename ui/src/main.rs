@@ -149,6 +149,7 @@ fn run_nogui(args: &[String], exe_dir: &Path) {
     let mut variant = Variant::Octopus;
     let mut osc_port: u16 = 8000;
     let mut http_port: u16 = 8080;
+    let mut host: String = "127.0.0.1".to_string();
     let mut out_a: i32 = -1;
     let mut out_b: i32 = -1;
     let mut midi_in: i32 = -1;
@@ -159,6 +160,7 @@ fn run_nogui(args: &[String], exe_dir: &Path) {
             "--variant" if i + 1 < args.len() => { variant = Variant::from_str(&args[i + 1]); i += 1; }
             "--osc-port" if i + 1 < args.len() => { osc_port = args[i + 1].parse().unwrap_or(8000); i += 1; }
             "--http-port" if i + 1 < args.len() => { http_port = args[i + 1].parse().unwrap_or(8080); i += 1; }
+            "--host" if i + 1 < args.len() => { host = args[i + 1].to_string(); i += 1; }
             "--out-a" if i + 1 < args.len() => { out_a = args[i + 1].parse().unwrap_or(-1); i += 1; }
             "--out-b" if i + 1 < args.len() => { out_b = args[i + 1].parse().unwrap_or(-1); i += 1; }
             "--in" if i + 1 < args.len() => { midi_in = args[i + 1].parse().unwrap_or(-1); i += 1; }
@@ -167,42 +169,41 @@ fn run_nogui(args: &[String], exe_dir: &Path) {
         i += 1;
     }
 
-    let seq = match find_sequencer(variant, exe_dir) {
-        Some(p) => p,
-        None => {
-            eprintln!("Sequencer binary not found.");
-            std::process::exit(1);
-        }
-    };
-
-    // Spawn sequencer
-    let mut seq_cmd = Command::new(&seq);
-    seq_cmd
-        .arg("--osc-port").arg(osc_port.to_string())
-        .arg("--out-a").arg(out_a.to_string())
-        .arg("--out-b").arg(out_b.to_string())
-        .arg("--in").arg(midi_in.to_string());
-    #[cfg(windows)]
-    seq_cmd.creation_flags(CREATE_NO_WINDOW);
-
-    let mut seq_process = match seq_cmd.spawn() {
-        Ok(c) => c,
-        Err(e) => {
-            eprintln!("Failed to start sequencer: {}", e);
-            std::process::exit(1);
-        }
-    };
+    let is_local = host == "127.0.0.1" || host == "localhost";
 
     // Start web server
     let ws_port = http_port + 1;
-    let mut web_server = match web_server::WebServer::start(osc_port, http_port, ws_port) {
+    let mut web_server = match web_server::WebServer::start(osc_port, http_port, ws_port, &host) {
         Ok(ws) => ws,
         Err(e) => {
             eprintln!("Failed to start web server: {}", e);
-            let _ = seq_process.kill();
             std::process::exit(1);
         }
     };
+
+    // Spawn engine only if host is local
+    let mut seq_process = None;
+    if is_local {
+        if let Some(seq) = find_sequencer(variant, exe_dir) {
+            let mut seq_cmd = Command::new(&seq);
+            seq_cmd
+                .arg("--osc-port").arg(osc_port.to_string())
+                .arg("--out-a").arg(out_a.to_string())
+                .arg("--out-b").arg(out_b.to_string())
+                .arg("--in").arg(midi_in.to_string());
+            #[cfg(windows)]
+            seq_cmd.creation_flags(CREATE_NO_WINDOW);
+
+            match seq_cmd.spawn() {
+                Ok(c) => seq_process = Some(c),
+                Err(e) => eprintln!("Failed to start sequencer: {}", e),
+            }
+        } else {
+            eprintln!("Sequencer binary not found. Running bridge only.");
+        }
+    } else {
+        eprintln!("Remote host ({}), running bridge only.", host);
+    }
 
     eprintln!("Press Ctrl+C to stop.");
 
@@ -217,7 +218,9 @@ fn run_nogui(args: &[String], exe_dir: &Path) {
 
     loop {
         if should_stop.load(Ordering::SeqCst) { break; }
-        if let Ok(Some(_)) = seq_process.try_wait() { break; }
+        if let Some(ref mut p) = seq_process {
+            if let Ok(Some(_)) = p.try_wait() { break; }
+        }
         std::thread::sleep(std::time::Duration::from_millis(200));
     }
 
@@ -225,8 +228,10 @@ fn run_nogui(args: &[String], exe_dir: &Path) {
     eprintln!("\nShutting down...");
     send_osc_quit(osc_port);
     std::thread::sleep(std::time::Duration::from_millis(500));
-    let _ = seq_process.kill();
-    let _ = seq_process.wait();
+    if let Some(mut p) = seq_process {
+        let _ = p.kill();
+        let _ = p.wait();
+    }
     web_server.stop();
     eprintln!("Done.");
 }
@@ -239,6 +244,7 @@ struct LauncherApp {
     variant: Variant,
     osc_port: String,
     http_port: String,
+    engine_host: String,
     out_a: i32,
     out_b: i32,
     midi_in: i32,
@@ -246,7 +252,6 @@ struct LauncherApp {
     devices_in: Vec<(i32, String)>,
     seq_process: Option<Child>,
     web_server: Option<web_server::WebServer>,
-    status: String,
     error: String,
     exe_dir: PathBuf,
     log_rx: Option<mpsc::Receiver<String>>,
@@ -259,6 +264,7 @@ impl LauncherApp {
             variant: Variant::Octopus,
             osc_port: "8000".to_string(),
             http_port: "8080".to_string(),
+            engine_host: "127.0.0.1".to_string(),
             out_a: -1,
             out_b: -1,
             midi_in: -1,
@@ -266,7 +272,6 @@ impl LauncherApp {
             devices_in: vec![(-1, "<none>".into())],
             seq_process: None,
             web_server: None,
-            status: "Stopped".into(),
             error: String::new(),
             exe_dir,
             log_rx: None,
@@ -312,25 +317,13 @@ impl LauncherApp {
         true
     }
 
-    fn start(&mut self) {
+    fn start_engine(&mut self) {
         let seq = match self.sequencer_path() {
             Some(p) => p,
             None => { self.error = "Sequencer binary not found.".into(); return; }
         };
         let port: u16 = self.osc_port.parse().unwrap_or(8000);
-        let http_port: u16 = self.http_port.parse().unwrap_or(8080);
-        let ws_port = http_port + 1;
 
-        // Start web server (in-process)
-        match web_server::WebServer::start(port, http_port, ws_port) {
-            Ok(ws) => self.web_server = Some(ws),
-            Err(e) => {
-                self.error = format!("Failed to start web server: {}", e);
-                return;
-            }
-        }
-
-        // Spawn sequencer
         let mut seq_cmd = Command::new(&seq);
         seq_cmd
             .arg("--osc-port").arg(port.to_string())
@@ -357,19 +350,15 @@ impl LauncherApp {
                     self.log_rx = Some(rx);
                 }
                 self.seq_process = Some(child);
+                self.error.clear();
             }
             Err(e) => {
                 self.error = format!("Failed to start sequencer: {}", e);
-                if let Some(mut ws) = self.web_server.take() { ws.stop(); }
-                return;
             }
         }
-
-        self.status = "Running".into();
-        self.error.clear();
     }
 
-    fn stop(&mut self) {
+    fn stop_engine(&mut self) {
         let port: u16 = self.osc_port.parse().unwrap_or(8000);
         send_osc_quit(port);
         std::thread::sleep(std::time::Duration::from_millis(500));
@@ -378,11 +367,34 @@ impl LauncherApp {
             let _ = p.kill();
             let _ = p.wait();
         }
+        self.log_rx = None;
+    }
+
+    fn start_bridge(&mut self) {
+        let port: u16 = self.osc_port.parse().unwrap_or(8000);
+        let http_port: u16 = self.http_port.parse().unwrap_or(8080);
+        let ws_port = http_port + 1;
+
+        match web_server::WebServer::start(port, http_port, ws_port, &self.engine_host) {
+            Ok(ws) => {
+                self.web_server = Some(ws);
+                self.error.clear();
+            }
+            Err(e) => {
+                self.error = format!("Failed to start web server: {}", e);
+            }
+        }
+    }
+
+    fn stop_bridge(&mut self) {
         if let Some(mut ws) = self.web_server.take() {
             ws.stop();
         }
-        self.log_rx = None;
-        self.status = "Stopped".into();
+    }
+
+    fn stop(&mut self) {
+        self.stop_engine();
+        self.stop_bridge();
     }
 
     fn open_browser(&self) {
@@ -410,12 +422,13 @@ impl eframe::App for LauncherApp {
             self.stop();
         }
 
-        let running = self.is_running();
-        if running != (self.status == "Running") {
-            self.status = if running { "Running".into() } else { "Stopped".into() };
-            if !running {
-                if let Some(mut ws) = self.web_server.take() { ws.stop(); }
-            }
+        let engine_running = self.is_running();
+        let bridge_running = self.web_server.is_some();
+
+        // Auto-detect engine crash
+        if !engine_running && self.seq_process.is_some() {
+            self.seq_process = None;
+            self.log_rx = None;
         }
 
         // Drain log receiver
@@ -459,18 +472,22 @@ impl eframe::App for LauncherApp {
 
             ui.horizontal(|ui| {
                 ui.label("OSC Port:");
-                ui.add_enabled(!running, egui::TextEdit::singleline(&mut self.osc_port).desired_width(60.0));
+                ui.add_enabled(!engine_running && !bridge_running, egui::TextEdit::singleline(&mut self.osc_port).desired_width(60.0));
+                ui.add_space(16.0);
+                ui.label("Web Port:");
+                ui.add_enabled(!bridge_running, egui::TextEdit::singleline(&mut self.http_port).desired_width(60.0));
             });
 
             ui.horizontal(|ui| {
-                ui.label("Web Port:");
-                ui.add_enabled(!running, egui::TextEdit::singleline(&mut self.http_port).desired_width(60.0));
+                ui.label("Engine Host:");
+                ui.add_enabled(!bridge_running, egui::TextEdit::singleline(&mut self.engine_host).desired_width(120.0));
             });
 
             ui.add_space(8.0);
             ui.separator();
             ui.add_space(8.0);
 
+            // --- MIDI section ---
             ui.horizontal(|ui| {
                 ui.label("MIDI Out A:");
                 let name = self.devices_out.iter().find(|(id, _)| *id == self.out_a).map(|(_, n)| n.as_str()).unwrap_or("<none>");
@@ -496,7 +513,7 @@ impl eframe::App for LauncherApp {
             });
 
             ui.horizontal(|ui| {
-                if ui.add_enabled(!running, egui::Button::new("Refresh Devices")).clicked() {
+                if ui.add_enabled(!engine_running, egui::Button::new("Refresh Devices")).clicked() {
                     self.refresh_devices();
                 }
             });
@@ -505,24 +522,43 @@ impl eframe::App for LauncherApp {
             ui.separator();
             ui.add_space(8.0);
 
+            // --- Engine section ---
             ui.horizontal(|ui| {
-                if !running {
-                    if ui.add(egui::Button::new("Start").min_size(egui::vec2(80.0, 28.0))).clicked() {
-                        self.start();
+                if !engine_running {
+                    if ui.add(egui::Button::new("Start Engine").min_size(egui::vec2(100.0, 28.0))).clicked() {
+                        self.start_engine();
                     }
                 } else {
-                    if ui.add(egui::Button::new("Stop").min_size(egui::vec2(80.0, 28.0))).clicked() {
-                        self.stop();
+                    if ui.add(egui::Button::new("Stop Engine").min_size(egui::vec2(100.0, 28.0))).clicked() {
+                        self.stop_engine();
                     }
                 }
-                if running {
+                ui.add_space(8.0);
+                let color = if engine_running { egui::Color32::from_rgb(0, 180, 0) } else { egui::Color32::from_rgb(180, 0, 0) };
+                ui.colored_label(color, format!("● Engine {}", if engine_running { "Running" } else { "Stopped" }));
+            });
+
+            ui.add_space(4.0);
+
+            // --- Bridge section ---
+            ui.horizontal(|ui| {
+                if !bridge_running {
+                    if ui.add(egui::Button::new("Start Bridge").min_size(egui::vec2(100.0, 28.0))).clicked() {
+                        self.start_bridge();
+                    }
+                } else {
+                    if ui.add(egui::Button::new("Stop Bridge").min_size(egui::vec2(100.0, 28.0))).clicked() {
+                        self.stop_bridge();
+                    }
+                }
+                if bridge_running {
                     if ui.button("Open Browser").clicked() {
                         self.open_browser();
                     }
                 }
-                ui.add_space(12.0);
-                let color = if running { egui::Color32::from_rgb(0, 180, 0) } else { egui::Color32::from_rgb(180, 0, 0) };
-                ui.colored_label(color, format!("● {}", self.status));
+                ui.add_space(8.0);
+                let color = if bridge_running { egui::Color32::from_rgb(0, 180, 0) } else { egui::Color32::from_rgb(180, 0, 0) };
+                ui.colored_label(color, format!("● Bridge {}", if bridge_running { "Running" } else { "Stopped" }));
             });
 
             if !self.error.is_empty() {
@@ -540,7 +576,7 @@ impl eframe::App for LauncherApp {
             }
         });
 
-        if running {
+        if engine_running {
             ctx.request_repaint_after(std::time::Duration::from_millis(500));
         }
     }
@@ -572,6 +608,7 @@ fn main() {
         eprintln!("  --variant <name>     Octopus or Nemo (default: Octopus)");
         eprintln!("  --osc-port <n>       OSC port (default: 8000)");
         eprintln!("  --http-port <n>      Web GUI HTTP port (default: 8080, WS = port+1)");
+        eprintln!("  --host <addr>        Engine host IP (default: 127.0.0.1; if remote, bridge only)");
         eprintln!("  --out-a <id>         MIDI output A device ID");
         eprintln!("  --out-b <id>         MIDI output B device ID");
         eprintln!("  --in <id>            MIDI input device ID");

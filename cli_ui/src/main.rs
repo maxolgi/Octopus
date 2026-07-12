@@ -9,10 +9,10 @@ use tokio::net::{TcpListener, TcpStream, UdpSocket};
 use tokio::sync::broadcast;
 use tokio_tungstenite::tungstenite::Message;
 
-const ENGINE_HOST: &str = "127.0.0.1";
 const ENGINE_OSC_IN: u16 = 8000;
 const ENGINE_OSC_OUT: u16 = 9000;
 const DEFAULT_HTTP_PORT: u16 = 8080;
+const DEFAULT_HOST: &str = "127.0.0.1";
 
 // ============================================================
 // OSC pack / unpack
@@ -206,7 +206,7 @@ async fn handle_http(mut stream: TcpStream, html: Arc<String>, nemo_html: Arc<St
 // WebSocket handler
 // ============================================================
 
-async fn handle_websocket(stream: TcpStream, udp: Arc<UdpSocket>, tx: broadcast::Sender<String>) {
+async fn handle_websocket(stream: TcpStream, udp: Arc<UdpSocket>, tx: broadcast::Sender<String>, engine_addr: String) {
     let ws_stream = match tokio_tungstenite::accept_async(stream).await {
         Ok(s) => s,
         Err(_) => return,
@@ -214,7 +214,6 @@ async fn handle_websocket(stream: TcpStream, udp: Arc<UdpSocket>, tx: broadcast:
 
     let (mut ws_sender, mut ws_receiver) = ws_stream.split();
     let mut rx = tx.subscribe();
-    let engine_addr = format!("{}:{}", ENGINE_HOST, ENGINE_OSC_IN);
 
     loop {
         tokio::select! {
@@ -339,6 +338,7 @@ async fn osc_listener(udp: Arc<UdpSocket>, tx: broadcast::Sender<String>) {
 #[tokio::main]
 async fn main() {
     let mut http_port: u16 = DEFAULT_HTTP_PORT;
+    let mut host: String = DEFAULT_HOST.to_string();
 
     let mut args = env::args().skip(1);
     while let Some(arg) = args.next() {
@@ -348,10 +348,16 @@ async fn main() {
                     http_port = val.parse().unwrap_or(DEFAULT_HTTP_PORT);
                 }
             }
+            "--host" => {
+                if let Some(val) = args.next() {
+                    host = val;
+                }
+            }
             "--help" | "-h" => {
-                println!("Usage: web_gui [options]\n");
+                println!("Usage: cli_ui [options]\n");
                 println!("Options:");
                 println!("  --http-port <n>, -p <n>  Web GUI HTTP port (default: {}, WS = port+1)", DEFAULT_HTTP_PORT);
+                println!("  --host <addr>            Engine host IP (default: {})", DEFAULT_HOST);
                 println!("  --help, -h               Show this help");
                 println!("\nThe engine (octopus/nemo) must be started separately.");
                 return;
@@ -361,12 +367,13 @@ async fn main() {
     }
 
     let ws_port = http_port + 1;
+    let engine_addr = format!("{}:{}", host, ENGINE_OSC_IN);
 
     let html = Arc::new(read_html("web_gui.html"));
     let nemo_html = Arc::new(read_html("web_gui_nemo.html"));
 
     let udp = Arc::new(
-        UdpSocket::bind(format!("127.0.0.1:{}", ENGINE_OSC_OUT))
+        UdpSocket::bind(format!("0.0.0.0:{}", ENGINE_OSC_OUT))
             .await
             .expect("Failed to bind OSC UDP socket"),
     );
@@ -407,12 +414,14 @@ async fn main() {
     {
         let udp = udp.clone();
         let tx = tx.clone();
+        let addr = engine_addr.clone();
         tokio::spawn(async move {
             loop {
                 if let Ok((stream, _)) = ws_listener.accept().await {
                     let udp = udp.clone();
                     let tx = tx.clone();
-                    tokio::spawn(handle_websocket(stream, udp, tx));
+                    let addr = addr.clone();
+                    tokio::spawn(handle_websocket(stream, udp, tx, addr));
                 }
             }
         });
@@ -421,8 +430,8 @@ async fn main() {
     println!("Web GUI: http://localhost:{}", http_port);
     println!("WebSocket: ws://localhost:{}", ws_port);
     println!(
-        "OSC bridge: engine:{} -> engine:{}",
-        ENGINE_OSC_IN, ENGINE_OSC_OUT
+        "OSC bridge: {}:{} -> recv on 0.0.0.0:{}",
+        host, ENGINE_OSC_IN, ENGINE_OSC_OUT
     );
 
     tokio::signal::ctrl_c().await.ok();

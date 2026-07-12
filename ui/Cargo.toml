@@ -16,3 +16,6 @@ futures-util = "0.3"
 
 [profile.release]
 opt-level = 2
+strip = true
+lto = true
+codegen-units = 1

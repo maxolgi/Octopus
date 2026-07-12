@@ -7,7 +7,6 @@ use tokio::net::{TcpListener, TcpStream, UdpSocket};
 use tokio::sync::broadcast;
 use tokio_tungstenite::tungstenite::Message;
 
-const ENGINE_HOST: &str = "127.0.0.1";
 const ENGINE_OSC_OUT: u16 = 9000;
 
 const HTML_OCTOPUS: &str = include_str!("../../web_gui.html");
@@ -264,7 +263,7 @@ pub struct WebServer {
 }
 
 impl WebServer {
-    pub fn start(engine_osc_in: u16, http_port: u16, ws_port: u16) -> Result<Self, String> {
+    pub fn start(engine_osc_in: u16, http_port: u16, ws_port: u16, engine_host: &str) -> Result<Self, String> {
         let runtime = tokio::runtime::Runtime::new().map_err(|e| e.to_string())?;
 
         let (http_listener, ws_listener, udp) = runtime.block_on(async {
@@ -274,7 +273,7 @@ impl WebServer {
             let ws = TcpListener::bind(format!("0.0.0.0:{}", ws_port))
                 .await
                 .map_err(|e| format!("WS bind: {}", e))?;
-            let udp = UdpSocket::bind(format!("{}:{}", ENGINE_HOST, ENGINE_OSC_OUT))
+            let udp = UdpSocket::bind(format!("0.0.0.0:{}", ENGINE_OSC_OUT))
                 .await
                 .map_err(|e| format!("OSC UDP bind: {}", e))?;
             Ok::<_, String>((http, ws, udp))
@@ -284,7 +283,7 @@ impl WebServer {
         let nemo_html = Arc::new(HTML_NEMO);
         let udp = Arc::new(udp);
         let (tx, _) = broadcast::channel::<String>(256);
-        let engine_addr = format!("{}:{}", ENGINE_HOST, engine_osc_in);
+        let engine_addr = format!("{}:{}", engine_host, engine_osc_in);
 
         // HTTP server
         {
@@ -329,7 +328,7 @@ impl WebServer {
 
         eprintln!("Web GUI: http://localhost:{}", http_port);
         eprintln!("WebSocket: ws://localhost:{}", ws_port);
-        eprintln!("OSC bridge: engine:{} -> engine:{}", engine_osc_in, ENGINE_OSC_OUT);
+        eprintln!("OSC bridge: {}:{} -> recv on 0.0.0.0:{}", engine_host, engine_osc_in, ENGINE_OSC_OUT);
 
         Ok(Self {
             runtime: Some(runtime),
