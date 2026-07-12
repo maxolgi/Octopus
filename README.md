@@ -3,6 +3,9 @@
 A faithful port of the Genoqs Octopus and Nemo MIDI sequencer firmware to Linux,
 using ALSA for MIDI I/O and OSC for the control surface.
 
+> **Also available:** The [`cuttlefish-v6`](../../tree/cuttlefish-v6) branch builds against the
+> octopus-cuttlefish-6.0.0 firmware with SoloRec, MIDI slave clock, and recording features.
+
 ## Quick Start
 
 ```bash
