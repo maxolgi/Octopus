@@ -1,0 +1,14 @@
+--- a/OCT_OS/_OCT_interrupts/cpu-load.c
++++ b/OCT_OS/_OCT_interrupts/cpu-load.c
+@@ -15,7 +15,11 @@
+  */
+ int cpu_load_at_max( void )
+ {
++#if defined(__linux__) || defined(_WIN32)
++	return 0;  /* No hardware timer on Linux/Windows — always allow playback */
++#else
+ 	return (G_cpu_load_perc >= 85);
++#endif
+ }
+ 
+ 

@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Nemo</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#1a1a1a;display:flex;flex-direction:column;align-items:center;padding:10px;font-family:monospace;user-select:none;overflow:hidden}
+.panel{--lbl:#777;background:#F8F6F0;border-radius:12px;padding:16px;box-shadow:0 4px 20px rgba(0,0,0,.5);display:flex;gap:8px;border:3px solid #2a2a2a}
+.grid-row{display:flex;gap:2px;align-items:center}
+.matrix-area{display:flex;flex-direction:column;gap:17px;padding-top:24px}
+.tnum{display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--lbl);width:14px;flex-shrink:0;margin-top:8px;height:22px;margin-right:-20px}
+.bcell{display:flex;flex-direction:column;align-items:center;gap:1px;position:relative}
+.bcell .lbl-below{position:absolute;top:100%;left:50%;transform:translateX(-50%);font-size:8px;color:var(--lbl);line-height:1;white-space:nowrap;padding-top:2px}
+.led{width:7px;height:7px;border-radius:50%;background:transparent;transition:background .05s,box-shadow .05s;pointer-events:none;flex-shrink:0}
+.sbtn{border-radius:50%;background:radial-gradient(circle at 35% 30%,#f0f0f0,#b8b8b8 70%,#a0a0a0);border:1px solid #888;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:inset 0 1px 2px rgba(255,255,255,.6),0 1px 1px rgba(0,0,0,.2);color:#444}
+.sbtn:active{transform:scale(.92)}
+.sbtn.held{transform:scale(.92)}
+.pad-btn{width:22px;height:22px;touch-action:none}
+.attr-wrap{position:relative;height:30px;width:22px}
+.attr-btn{width:22px;height:22px;flex-shrink:0;margin-top:8px}
+.attr-led{position:absolute;left:25px;top:19px;transform:translateY(-50%)}
+.attr-lbl{font-size:8px;color:var(--lbl);white-space:nowrap;position:absolute;right:25px;top:19px;transform:translateY(-50%)}
+.mut-wrap{position:relative;height:30px;width:22px}
+.mut-btn{width:22px;height:22px;flex-shrink:0;margin-top:8px}
+.mut-led{position:absolute;right:25px;top:19px;transform:translateY(-50%)}
+.mut-lbl{font-size:8px;color:var(--lbl);white-space:nowrap;position:absolute;left:25px;top:19px;transform:translateY(-50%)}
+.rot-entry{display:flex;flex-direction:column;align-items:center;gap:1px;padding-top:8px;width:45px}
+.rot-pair{display:flex;gap:1px}
+.rb{width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#f0f0f0,#b8b8b8 70%,#a0a0a0);border:1px solid #888;cursor:pointer;font-size:8px;color:#333;display:flex;align-items:center;justify-content:center;box-shadow:inset 0 1px 2px rgba(255,255,255,.6),0 1px 1px rgba(0,0,0,.2)}
+.rb:active{background:linear-gradient(to bottom,#b0b0b0,#909090)}
+
+/* Hex encoder knob */
+.knob{width:22px;height:22px;position:relative;cursor:ns-resize;flex-shrink:0}
+.knob:active{cursor:grabbing}
+.knob-cap{position:absolute;inset:-3px;clip-path:polygon(50% 0%,93% 25%,93% 75%,50% 100%,7% 75%,7% 25%);background:linear-gradient(150deg,#ececec,#c4c4c4 40%,#a8a8a8 55%,#c0c0c0 75%,#d8d8d8);filter:drop-shadow(0 1px 1px rgba(0,0,0,.4));transition:transform .06s linear}
+.knob-indicator{display:none}
+.rot-lbl{font-size:7px;color:var(--lbl);margin-top:1px}
+.spacer-20{width:20px}
+.mix-row{display:flex;gap:2px;align-items:flex-end;padding:4px 0 3px 0}
+.mmix{display:flex;flex-direction:column;align-items:center;gap:1px}
+.mmix-wide{width:45px;flex-shrink:0}
+.empty-cell{width:22px;flex-shrink:0}
+.mmix .rbtn{width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#f0f0f0,#b8b8b8 70%,#a0a0a0);border:1px solid #888;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:inset 0 1px 2px rgba(255,255,255,.6),0 1px 1px rgba(0,0,0,.2)}
+.mmix .rlbl{font-size:8px;color:var(--lbl);line-height:1}
+.right-panel{display:flex;flex-direction:column;gap:6px;align-items:center;padding-left:4px;padding-top:24px}
+.right-knobs{display:flex;flex-direction:column;gap:4px}
+/* Context menu */
+.ctx-menu{position:fixed;background:#222;border:1px solid #555;border-radius:4px;padding:6px 10px;z-index:9999;font-size:10px;color:#ccc;font-family:monospace;display:none}
+.ctx-item{padding:3px 0}
+.ctx-item label{cursor:pointer}
+.ctx-item input[type=color]{width:24px;height:16px;border:1px solid #555;background:none;cursor:pointer;padding:0;border-radius:2px}
+.status{font-size:10px;color:#999}.st-on{color:#0a0}
+</style>
+</head>
+<body>
+<div id="ctxMenu" class="ctx-menu">
+  <div class="ctx-item"><span class="status" id="status">Connecting...</span></div>
+  <div class="ctx-item"><label>Panel <input type="color" id="bgColorPicker" value="#f8f6f0"></label></div>
+</div>
+<div class="panel" id="panel">
+  <div class="matrix-area" id="matrixArea"></div>
+</div>
+<script>
+let ws=null,blink=0,windowOffset=0;
+const mkey=(r,c)=>11+c*11+r;
+function mkCell(btn){const led=document.createElement('div');led.className='led';const cell=document.createElement('div');cell.className='bcell';cell.appendChild(led);cell.appendChild(btn);return cell;}
+
+let knobDrag=null;
+function createKnob(idx){
+  const k=document.createElement('div');k.className='knob';
+  const cap=document.createElement('div');cap.className='knob-cap';
+  const ind=document.createElement('div');ind.className='knob-indicator';
+  cap.appendChild(ind);k.appendChild(cap);
+  let rot=0;
+  function tick(d){rrot(idx,d);rot+=d===2?20:-20;cap.style.transform='rotate('+rot+'deg)';}
+  k.addEventListener('wheel',function(e){e.preventDefault();tick(e.deltaY<0?2:1);},{passive:false});
+  k.addEventListener('mousedown',function(e){e.preventDefault();knobDrag={el:k,y:e.clientY,acc:0,t:tick};k.style.cursor='grabbing';});
+  return k;
+}
+document.addEventListener('mousemove',function(e){
+  if(!knobDrag)return;
+  var dy=knobDrag.y-e.clientY;
+  while(dy-knobDrag.acc>=10){knobDrag.acc+=10;knobDrag.t(2);}
+  while(dy-knobDrag.acc<=-10){knobDrag.acc-=10;knobDrag.t(1);}
+});
+document.addEventListener('mouseup',function(){if(knobDrag){knobDrag.el.style.cursor='';knobDrag=null;}});
+const mutLabels=['TGGL','SOLO','CLR','RND','FLT','RMX','EFF','ZOOM','CPY','PST'];
+const VISIBLE_ROWS=4;
+
+// === Build matrix (4 visible rows) ===
+const ma=document.getElementById('matrixArea');
+for(let vi=VISIBLE_ROWS-1;vi>=0;vi--){
+  const row=vi+windowOffset; // actual track row
+  const r=document.createElement('div');r.className='grid-row';
+  // Track number
+  r.appendChild(Object.assign(document.createElement('div'),{className:'tnum',textContent:row,id:`tnum-${vi}`}));
+  // Left MIX rotary (ID = 20 - actual_row)
+  const lrid=20-row;
+  const lr=document.createElement('div');lr.className='rot-entry';
+  lr.appendChild(createKnob(lrid));
+  r.appendChild(Object.assign(document.createElement('div'),{className:'spacer-20'}));r.appendChild(lr);
+  // Attribute button (key = actual_row + 1)
+  r.appendChild(Object.assign(document.createElement('div'),{className:'spacer-20'}));
+  const attrKey=row+1;
+  const aw=document.createElement('div');aw.className='attr-wrap';
+  const aLed=document.createElement('div');aLed.className='led attr-led';
+  const abtn=document.createElement('div');abtn.className='sbtn attr-btn';abtn.id=`lbt-${attrKey}`;
+  aw.appendChild(aLed);aw.appendChild(abtn);r.appendChild(aw);
+  // 16 step pads
+  r.appendChild(Object.assign(document.createElement('div'),{className:'spacer-20'}));
+  for(let col=0;col<16;col++){
+    const p=document.createElement('div');p.className='sbtn pad-btn';p.id=`p${row}_${col}`;
+    r.appendChild(mkCell(p));
+  }
+  // Mutator
+  r.appendChild(Object.assign(document.createElement('div'),{className:'spacer-20'}));
+  const mutKey=187+vi;
+  const mw=document.createElement('div');mw.className='mut-wrap';
+  const mLbl=document.createElement('div');mLbl.className='mut-lbl';mLbl.textContent=mutLabels[vi];
+  const mLed=document.createElement('div');mLed.className='led mut-led';
+  const mt=document.createElement('div');mt.className='sbtn mut-btn';mt.id=`rbt-${mutKey}`;
+  mw.appendChild(mLbl);mw.appendChild(mLed);mw.appendChild(mt);r.appendChild(mw);
+  // Right rotary (PIT/VEL/LEN/STA per visible row)
+  r.appendChild(Object.assign(document.createElement('div'),{className:'spacer-20'}));
+  const rrid=vi+1;
+  const rr=document.createElement('div');rr.className='rot-entry';
+  rr.appendChild(createKnob(rrid));
+  r.appendChild(rr);
+  // Mode button (same column as ESC): GRID, PAGE, TRK, STEP per visible row
+  r.appendChild(Object.assign(document.createElement('div'),{className:'spacer-20'}));
+  const modeDefs=[{k:227,l:'STEP'},{k:220,l:'TRK',extra:{k:193,l:'SNP'}},{k:219,l:'PAGE',extra:{k:222,l:'SCL'}},{k:218,l:'GRID'}];
+  const md=modeDefs[vi];
+  const modeBtn=document.createElement('div');modeBtn.className='sbtn';modeBtn.style.width='22px';modeBtn.style.height='22px';
+  modeBtn.id=`ck-${md.k}`;
+  modeBtn.onmousedown=()=>{skey(md.k,true)};
+  modeBtn.onmouseup=()=>skey(md.k,false);
+  const mc=mkCell(modeBtn);
+  const ml=document.createElement('div');ml.className='lbl-below';ml.textContent=md.l;mc.appendChild(ml);
+  r.appendChild(mc);
+  // Extra button (SCL next to PAGE, SNP next to TRK)
+  if(md.extra){
+    r.appendChild(Object.assign(document.createElement('div'),{className:'spacer-20'}));
+    const exBtn=document.createElement('div');exBtn.className='sbtn';exBtn.style.width='22px';exBtn.style.height='22px';
+    exBtn.id=`ck-${md.extra.k}`;
+    exBtn.onmousedown=()=>skey(md.extra.k,true);
+    exBtn.onmouseup=()=>skey(md.extra.k,false);
+    const ec=mkCell(exBtn);
+    const el=document.createElement('div');el.className='lbl-below';el.textContent=md.extra.l;ec.appendChild(el);
+    r.appendChild(ec);
+  }
+  ma.appendChild(r);
+}
+
+// === Mix strip ===
+function mkMixBtn(key,label){
+  const wrap=document.createElement('div');wrap.className='mmix';
+  const led=document.createElement('div');led.className='led';
+  const btn=document.createElement('div');btn.className='rbtn';btn.id=`mx${key}`;
+  const lbl=document.createElement('div');lbl.className='rlbl';lbl.textContent=label;
+  wrap.appendChild(led);wrap.appendChild(btn);wrap.appendChild(lbl);return wrap;
+}
+const mixRow=document.createElement('div');mixRow.className='mix-row';
+mixRow.appendChild(Object.assign(document.createElement('div'),{className:'tnum'}));
+mixRow.appendChild(Object.assign(document.createElement('div'),{className:'spacer-20'}));
+const mixMIX=mkMixBtn(21,'MIX');mixMIX.classList.add('mmix-wide');mixRow.appendChild(mixMIX);
+mixRow.appendChild(Object.assign(document.createElement('div'),{className:'spacer-20'}));
+mixRow.appendChild(mkMixBtn(32,'SEL'));
+mixRow.appendChild(Object.assign(document.createElement('div'),{className:'spacer-20'}));
+mixRow.appendChild(mkMixBtn(43,'A'));
+mixRow.appendChild(mkMixBtn(54,'B'));
+mixRow.appendChild(mkMixBtn(65,'C'));
+mixRow.appendChild(mkMixBtn(76,'D'));
+for(let i=0;i<8;i++)mixRow.appendChild(Object.assign(document.createElement('div'),{className:'empty-cell'}));
+mixRow.appendChild(mkMixBtn(231,'STP'));
+mixRow.appendChild(mkMixBtn(223,'REC'));
+mixRow.appendChild(mkMixBtn(232,'PSE'));
+mixRow.appendChild(mkMixBtn(241,'PLY'));
+mixRow.appendChild(Object.assign(document.createElement('div'),{className:'spacer-20'}));
+mixRow.appendChild(mkMixBtn(164,'MUT'));
+mixRow.appendChild(Object.assign(document.createElement('div'),{className:'spacer-20'}));
+const mixEDT=mkMixBtn(175,'EDT');mixEDT.classList.add('mmix-wide');mixRow.appendChild(mixEDT);
+mixRow.appendChild(Object.assign(document.createElement('div'),{className:'spacer-20'}));
+mixRow.appendChild(mkMixBtn(186,'ESC'));
+ma.appendChild(mixRow);
+
+// TPO goes right of GRID on the top row
+const tpoRow=ma.querySelector('.grid-row');
+const tpo=document.createElement('div');tpo.className='rot-entry';
+tpo.appendChild(createKnob(0));
+tpoRow.appendChild(Object.assign(document.createElement('div'),{className:'spacer-20'}));
+tpoRow.appendChild(tpo);
+
+// === Bind buttons ===
+const heldKeys=new Map();
+function bindKey(el,key,extraDown){
+  if(!el)return;
+  el.oncontextmenu=(e)=>{e.preventDefault();return false;};
+  el.onmousedown=(e)=>{
+    if(e.ctrlKey||e.metaKey||e.button===2){e.preventDefault();
+      if(heldKeys.has(key)){skey(key,false);el.classList.remove('held');heldKeys.delete(key);}
+      else{skey(key,true);el.classList.add('held');heldKeys.set(key,el);}return;}
+    skey(key,true);if(extraDown)extraDown();
+  };
+  el.onmouseup=()=>{if(heldKeys.has(key))return;skey(key,false);
+    heldKeys.forEach((h,k)=>{skey(k,false);h.classList.remove('held');});heldKeys.clear();};
+}
+// === Drag-paint step pads ===
+let dragPaint=null;
+function bindStepPad(el,key){
+  if(!el)return;
+  el.oncontextmenu=(e)=>{e.preventDefault();return false;};
+  el.onmousedown=(e)=>{
+    if(e.ctrlKey||e.metaKey||e.button===2){e.preventDefault();
+      if(heldKeys.has(key)){skey(key,false);el.classList.remove('held');heldKeys.delete(key);}
+      else{skey(key,true);el.classList.add('held');heldKeys.set(key,el);}return;}
+    e.preventDefault();
+    dragPaint={visited:new Set()};
+    skey(key,true);skey(key,false);
+    dragPaint.visited.add(el.id);
+  };
+  el.addEventListener('mouseenter',()=>{
+    if(!dragPaint||dragPaint.visited.has(el.id))return;
+    skey(key,true);skey(key,false);
+    dragPaint.visited.add(el.id);
+  });
+  el.onmouseup=()=>{if(heldKeys.has(key))return;dragPaint=null;
+    heldKeys.forEach((h,k)=>{skey(k,false);h.classList.remove('held');});heldKeys.clear();};
+  el.addEventListener('touchstart',(e)=>{
+    e.preventDefault();
+    dragPaint={visited:new Set()};
+    skey(key,true);skey(key,false);
+    dragPaint.visited.add(el.id);
+  },{passive:false});
+  el.addEventListener('touchmove',(e)=>{
+    if(!dragPaint)return;
+    e.preventDefault();
+    const t=e.touches[0];
+    const tgt=document.elementFromPoint(t.clientX,t.clientY);
+    const pad=tgt?tgt.closest('.pad-btn'):null;
+    if(pad&&pad.id.match(/^p\d+_\d+$/)&&!dragPaint.visited.has(pad.id)){
+      const m=pad.id.match(/^p(\d+)_(\d+)$/);
+      const pk=mkey(+m[1],+m[2]);
+      skey(pk,true);skey(pk,false);
+      dragPaint.visited.add(pad.id);
+    }
+  },{passive:false});
+}
+document.addEventListener('mouseup',()=>{dragPaint=null;});
+document.addEventListener('touchend',()=>{dragPaint=null;});
+document.addEventListener('touchcancel',()=>{dragPaint=null;});
+document.querySelectorAll('[id^="p"]').forEach(el=>{const m=el.id.match(/^p(\d+)_(\d+)$/);if(m)bindStepPad(el,mkey(+m[1],+m[2]));});
+document.querySelectorAll('[id^="lbt-"]').forEach(el=>bindKey(el,parseInt(el.id.slice(4))));
+document.querySelectorAll('[id^="rbt-"]').forEach(el=>bindKey(el,parseInt(el.id.slice(4))));
+document.querySelectorAll('[id^="mx"]').forEach(el=>{
+  const key=parseInt(el.id.slice(2));
+  if(key===186)bindKey(el,key);
+  else bindKey(el,key);
+});
+
+// === Fit to screen ===
+function fitToScreen(){
+  const p=document.getElementById('panel');const nw=p.offsetWidth,nh=p.offsetHeight;
+  if(!nw)return;const s=Math.min((window.innerWidth-20)/nw,(window.innerHeight-50)/nh);
+  p.style.transform=`scale(${s})`;p.style.transformOrigin='top center';
+}
+window.addEventListener('resize',fitToScreen);fitToScreen();
+
+const ctxMenu=document.getElementById('ctxMenu');
+document.addEventListener('contextmenu',function(e){
+  if(e.target.closest('.sbtn,.rbtn,.knob,.rb,.bcell'))return;
+  e.preventDefault();
+  ctxMenu.style.display='block';
+  ctxMenu.style.left=Math.min(e.clientX,window.innerWidth-120)+'px';
+  ctxMenu.style.top=Math.min(e.clientY,window.innerHeight-50)+'px';
+});
+document.addEventListener('click',function(e){if(!ctxMenu.contains(e.target))ctxMenu.style.display='none';});
+
+function applyPanelBg(c){const p=document.getElementById('panel');p.style.background=c;const r=parseInt(c.slice(1,3),16),g=parseInt(c.slice(3,5),16),b=parseInt(c.slice(5,7),16);p.style.setProperty('--lbl',(0.299*r+0.587*g+0.114*b)/255<0.5?'#ccc':'#777');}
+(function(){const s=localStorage.getItem('panelBg');if(s){applyPanelBg(s);document.getElementById('bgColorPicker').value=s;}})();
+document.getElementById('bgColorPicker').addEventListener('input',function(e){applyPanelBg(e.target.value);localStorage.setItem('panelBg',e.target.value);});
+
+// === WebSocket ===
+function connect(){
+  ws=new WebSocket(`ws://${location.hostname}:8081`);
+  ws.onopen=()=>{document.getElementById('status').textContent='● Connected';document.getElementById('status').className='status st-on';};
+  ws.onclose=()=>{document.getElementById('status').textContent='○ Reconnecting';document.getElementById('status').className='status';setTimeout(connect,1000);};
+  ws.onmessage=(e)=>{const m=JSON.parse(e.data);handle(m.address,m.args);};
+}
+connect();
+function send(m){if(ws&&ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify(m));}
+function skey(i,p){send({type:'key',index:i,press:p});}
+function rrot(i,d){send({type:'rotary',index:i,direction:d});}
+
+// === MIR decode ===
+let mirData=new Uint8Array(170);
+function handle(addr,args){
+  if(addr==='/octopus/mir'||addr==='/mir'){const h=args[0];for(let i=0;i<170;i++)mirData[i]=parseInt(h.substr(i*2,2),16);upd();}
+  else if(addr==='/octopus/blink'||addr==='/blink'){blink=args[0];}
+}
+function mb(s,r,c){return mirData[s*85+r*5+c];}
+function ml(s,r,b){return((mb(s,r,1)>>b&1)?2:0)|((mb(s,r,2)>>b&1)?4:0);}
+function setL(el,v){
+  if(!el)return;
+  const led=el.previousElementSibling||(el.parentElement&&el.parentElement.querySelector('.led'))||el;
+  const r=v&2,g=v&4;
+  if(r&&g){led.style.background='#dc0';led.style.boxShadow='0 0 5px #e80';}
+  else if(r){led.style.background='#d00';led.style.boxShadow='0 0 5px #f00';}
+  else if(g){led.style.background='#0c0';led.style.boxShadow='0 0 5px #0f0';}
+  else{led.style.background='transparent';led.style.boxShadow='none';}
+}
+function upd(){
+  // Matrix (decode all 8 internal rows, but only visible 4 are in DOM)
+  for(let row=0;row<8;row++){
+    for(let col=0;col<8;col++){
+      const el1=document.getElementById(`p${row}_${col}`);
+      const el2=document.getElementById(`p${row}_${col+8}`);
+      if(el1)setL(el1,ml(0,row,col));
+      if(el2)setL(el2,ml(1,row,col));
+    }
+  }
+  // Mix strip
+  const mk=[21,32,43,54,65,76,87,98,109,120,131,142,153,164,175,186];
+  const mm=[[0,10,0],[0,10,1],[0,10,2],[0,10,3],[0,10,4],[0,10,5],[0,10,6],[0,10,7],[1,10,0],[1,10,1],[1,10,2],[1,10,3],[1,10,4],[1,10,5],[1,10,6],[1,10,7]];
+  mk.forEach((k,i)=>setL(document.getElementById(`mx${k}`),ml(mm[i][0],mm[i][1],mm[i][2])));
+  // Transport LEDs (Nemo: STOP key=231 LED at MIR[1][14]b0, REC key=223 LED at MIR[0][14]b7)
+  setL(document.getElementById('mx231'),ml(1,14,0)); // STP
+  setL(document.getElementById('mx223'),ml(0,14,7)); // REC
+  setL(document.getElementById('mx232'),ml(1,14,1)); // PSE
+  setL(document.getElementById('mx241'),ml(1,14,2)); // PLY
+  // MODE button LEDs (zoom cluster in circle MIR area)
+  setL(document.getElementById('ck-218'),ml(0,16,0)); // GRID
+  setL(document.getElementById('ck-219'),ml(0,16,1)); // PAGE
+  setL(document.getElementById('ck-220'),ml(0,16,4)); // TRACK
+  setL(document.getElementById('ck-227'),ml(0,16,2)); // STEP
+  // Button tools (only visible ones exist in DOM)
+  for(let i=0;i<5;i++){
+    const lb1=document.getElementById(`lbt-${i+1}`);if(lb1)setL(lb1,ml(0,11,4-i));
+    const lb2=document.getElementById(`lbt-${i+6}`);if(lb2)setL(lb2,ml(0,12,5-i));
+    const rb1=document.getElementById(`rbt-${187+i}`);if(rb1)setL(rb1,ml(1,11,i+1));
+    const rb2=document.getElementById(`rbt-${192+i}`);if(rb2)setL(rb2,ml(1,12,i));
+  }
+}
+</script>
+</body>
+</html>

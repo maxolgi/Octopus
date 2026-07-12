@@ -1,0 +1,146 @@
+# Octopus/Nemo Linux Port
+
+A faithful port of the Genoqs Octopus and Nemo MIDI sequencer firmware to Linux,
+using ALSA for MIDI I/O and OSC for the control surface.
+
+## Quick Start
+
+```bash
+# Clone with firmware submodule
+git clone --recurse-submodules <repo-url>
+cd Octopus
+
+# Build (requires: gcc, libasound2-dev)
+make                    # build Octopus
+make NEMO=1             # build Nemo variant
+
+# Run the engine
+./build/octopus &
+
+# Start the web GUI
+python3 web_gui.py
+
+# Open in browser
+# http://localhost:8080
+```
+
+If you cloned without `--recurse-submodules`, initialize the firmware submodule:
+```bash
+git submodule update --init
+```
+
+## Architecture
+
+The original firmware source is a git submodule at `firmware/` (a fork of
+[genoqs-community/source](https://github.com/genoqs-community/source) with
+5 minimal `#ifdef __linux__`/`_WIN32` patches in `patches/`).
+
+The entire 65,000-line firmware compiles and runs on Linux via an eCos
+compatibility shim (`hal_linux.c`) that maps `cyg_*` APIs to pthreads, pipes,
+POSIX semaphores, and timerfd. No original firmware logic is modified (only
+5 minimal patches for NULL safety, CPU-load stub, and ALSA/winmm routing).
+
+### Modules
+
+| File | Purpose |
+|---|---|
+| `src/main_linux.c` | Entry point, sequencer thread, auto-save/load |
+| `src/hal_linux.c` | eCos API shim (pthread, pipe, timerfd) |
+| `src/midi_alsa.c` | ALSA sequencer I/O (2 out ports + 1 in port) |
+| `src/osc_server.c` | OSC UDP input server (dependency-free) |
+| `src/osc_render.c` | MIR → OSC output bridge + 60 Hz render thread |
+| `include/hal_linux.h` | eCos type/macro declarations |
+| `web_gui.py` | WebSocket ↔ OSC bridge for browser control surface |
+| `web_gui.html` | Browser-based grid UI |
+
+### OSC Namespace
+
+**Input (control surface → engine):**
+
+| Address | Args | Maps to |
+|---|---|---|
+| `/octopus/key` | `ii` (index 1–260, press 1/release 0) | `executeKey(index)` |
+| `/octopus/rotary` | `ii` (id 0–20, INC=2/DEC=1) | `executeRot()` |
+| `/octopus/transport` | `s` ("start"/"stop"/"pause"/"continue") | transport state |
+| `/octopus/tempo` | `i` (bpm 10–199) | `G_master_tempo` |
+| `/octopus/zoom` | `i` (level 0–14) | `G_zoom_level` |
+| `/octopus/clocksource` | `i` (0=OFF, 1=INT, 2=EXT) | `G_clock_source` |
+| `/octopus/quit` | — | clean shutdown |
+
+**Output (engine → control surface):**
+
+| Address | Args | Content |
+|---|---|---|
+| `/octopus/mir` | `b` (170-byte blob) | Full MIR LED framebuffer |
+| `/octopus/blink` | `i` | Master blinker phase |
+| `/octopus/transport` | `i` | Playing (1) / stopped (0) |
+
+### Key Index Reference
+
+| Region | Index | Formula |
+|---|---|---|
+| Step matrix | 11–185 | `11 + col * 11 + row` (row 0–9, col 0–15) |
+| Transport | 241=PLAY, 231=STOP, 232=PAUSE, 223=RECORD | |
+| Zoom | 218=GRID, 219=PAGE, 220=TRACK, 227=STEP | |
+| Track selectors | 1–10 | track 0–9 |
+| Rotary encoders | 0–20 | TEMPO, VEL, PIT, LEN, STA, POS, DIR, AMT, GRV, MCC, MCH |
+
+## MIDI Connections
+
+The engine creates ALSA sequencer client with ports:
+- `out_A` — channels 1–16 (physical MIDI out 1)
+- `out_B` — channels 17–32 (physical MIDI out 2)
+- `in` — MIDI input (clock slave, recording)
+
+```bash
+# Auto-connected to Midi Through for testing.
+# Connect to a synth:
+aconnect <octopus_client>:0 <synth_client>:<port>
+
+# Monitor:
+aseqdump -p <octopus_client>:0
+
+# External clock source:
+aconnect <clock_source>:<port> <octopus_client>:2
+```
+
+## Persistence
+
+State auto-saves on exit to `octopus_state.bin` and auto-loads on startup.
+Uses the firmware's PersistentV2 serialization format (PersPageExport/Import).
+
+## Testing
+
+```bash
+# Basic MIDI verification
+./build/octopus &
+python3 tests/test_osc.py    # OSC commands
+aseqdump -p 128:0            # watch MIDI output
+
+# Phase 4 test (rotary encoders, track attributes)
+python3 tests/test_phase4.py
+```
+
+## Build Targets
+
+```bash
+make            # Octopus (10 tracks × 16 steps)
+make NEMO=1     # Nemo (8 visible tracks, Cadence, Wilson windowing)
+make clean
+```
+
+## Modifications to Original Firmware
+
+Only 5 files modified in the `firmware/` submodule (all minimal, guarded):
+
+1. `includes-declarations.h` — swap eCos headers for `hal_linux.h`
+2. `Init_memory.h:638` — NULL guard in `PAGE_init()` (ARM hardware masked this bug)
+3. `cpu-load.c:16` — disable CPU load check on Linux/Windows (no hardware countdown timer)
+4. `play_MIDI.h:80` — `#ifdef __linux__` routing `MIDI_send()` to ALSA
+5. `show_hwdriver.h:36` — `#ifndef __linux__` suppressing hardware `VIEWER_show_MIR()`
+
+Patches are stored in `patches/`. See `scripts/setup-firmware.sh` for fork setup.
+
+## License
+
+GPL v2 (inherited from the original Octopus_OS firmware).

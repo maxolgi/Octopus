@@ -1,0 +1,18 @@
+--- a/OCT_OS/_OCT_Viewer/show_hwdriver.h
++++ b/OCT_OS/_OCT_Viewer/show_hwdriver.h
+@@ -33,6 +33,7 @@
+ // Main VIEWER Function: Shows the content of the MIR
+ 
+ 
++#if !defined(__linux__) && !defined(_WIN32)
+ void VIEWER_show_MIR(){
+ 
+ 	// Displays the VIEWER page on the Panel
+@@ -157,6 +158,7 @@
+ 		cyg_mutex_unlock ( &mutex_data_port );
+ 	}
+ }
++#endif /* !__linux__ && !_WIN32 */
+ 
+ 
+ 

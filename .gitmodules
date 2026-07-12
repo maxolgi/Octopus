@@ -1,0 +1,3 @@
+[submodule "firmware"]
+	path = firmware
+	url = git@github.com:maxolgi/OCT_CE_OS.git

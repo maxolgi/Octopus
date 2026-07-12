@@ -1,0 +1,307 @@
+diff -ruN '--exclude=*.o' '--exclude=*.elf' a/OCT_OS/_OCT_exe_keys/key_GRID.h b/OCT_OS/_OCT_exe_keys/key_GRID.h
+--- a/OCT_OS/_OCT_exe_keys/key_GRID.h	2026-07-12 09:38:23.103108344 -0400
++++ b/OCT_OS/_OCT_exe_keys/key_GRID.h	2026-07-12 09:15:49.924377686 -0400
+@@ -1206,6 +1206,7 @@
+ 
+ 
+ 
++				#ifndef NEMO
+ 				case KEY_RANDOMIZE:
+ 
+ 					// Select all tracks in cursor page
+@@ -1220,6 +1221,7 @@
+ 					// Mark page as touched
+ 					target_page->page_clear = OFF;
+ 					break;
++				#endif
+ 
+ 
+ 
+diff -ruN '--exclude=*.o' '--exclude=*.elf' a/OCT_OS/_OCT_exe_keys/key_MAP.h b/OCT_OS/_OCT_exe_keys/key_MAP.h
+--- a/OCT_OS/_OCT_exe_keys/key_MAP.h	2026-07-12 09:38:23.103108344 -0400
++++ b/OCT_OS/_OCT_exe_keys/key_MAP.h	2026-07-12 09:15:49.925002897 -0400
+@@ -360,6 +360,7 @@
+ 
+ 
+ 
++			#ifndef NEMO
+ 			case KEY_RANDOMIZE:
+ 
+ 				// Act depending on the selected attribute j
+@@ -485,6 +486,7 @@
+ 
+ 
+ 				break;
++			#endif
+ 
+ 
+ 
+diff -ruN '--exclude=*.o' '--exclude=*.elf' a/OCT_OS/_OCT_exe_keys/key_PAGE_sel_NONE_BIRDSEYE.h b/OCT_OS/_OCT_exe_keys/key_PAGE_sel_NONE_BIRDSEYE.h
+--- a/OCT_OS/_OCT_exe_keys/key_PAGE_sel_NONE_BIRDSEYE.h	2026-07-12 09:38:23.103108344 -0400
++++ b/OCT_OS/_OCT_exe_keys/key_PAGE_sel_NONE_BIRDSEYE.h	2026-07-12 09:15:49.926225850 -0400
+@@ -152,6 +152,7 @@
+ 
+ 
+ 
++			#ifndef NEMO
+ 			case KEY_RANDOMIZE:
+ 
+ 				// Select all tracks in cursor page
+@@ -166,6 +167,7 @@
+ 				// Mark page as touched
+ 				Page_repository[GRID_CURSOR].page_clear = OFF;
+ 				break;
++			#endif
+ 
+ 
+ 
+diff -ruN '--exclude=*.o' '--exclude=*.elf' a/OCT_OS/_OCT_exe_keys/key_PAGE_sel_NONE.h b/OCT_OS/_OCT_exe_keys/key_PAGE_sel_NONE.h
+--- a/OCT_OS/_OCT_exe_keys/key_PAGE_sel_NONE.h	2026-07-12 09:38:23.103108344 -0400
++++ b/OCT_OS/_OCT_exe_keys/key_PAGE_sel_NONE.h	2026-07-12 09:15:49.926044389 -0400
+@@ -115,10 +115,12 @@
+ 				case KEY_MIXTGT_EXP: 	target_page->mixTarget = MIXTGT_EXP; 	break;
+ 
+ 				case KEY_MIXTGT_USR0: 	target_page->mixTarget = MIXTGT_USR0; 	break;
++				#ifndef NEMO
+ 				case KEY_MIXTGT_USR1: 	target_page->mixTarget = MIXTGT_USR1; 	break;
+ 				case KEY_MIXTGT_USR2: 	target_page->mixTarget = MIXTGT_USR2; 	break;
+ 				case KEY_MIXTGT_USR3: 	target_page->mixTarget = MIXTGT_USR3; 	break;
+ 				case KEY_MIXTGT_USR4: 	target_page->mixTarget = MIXTGT_USR4; 	break;
++				#endif
+ 				case KEY_MIXTGT_USR5: 	target_page->mixTarget = MIXTGT_USR5; 	break;
+ 			}
+ 		} // Single click scenario
+diff -ruN '--exclude=*.o' '--exclude=*.elf' a/OCT_OS/_OCT_exe_keys/key_PAGE_sel_STEP.h b/OCT_OS/_OCT_exe_keys/key_PAGE_sel_STEP.h
+--- a/OCT_OS/_OCT_exe_keys/key_PAGE_sel_STEP.h	2026-07-12 09:38:23.103108344 -0400
++++ b/OCT_OS/_OCT_exe_keys/key_PAGE_sel_STEP.h	2026-07-12 09:15:49.926468097 -0400
+@@ -210,6 +210,7 @@
+ 
+ 
+ 
++			#ifndef NEMO
+ 			case KEY_RANDOMIZE:
+ 
+ 				// Search all steps and act on the ones selected
+@@ -225,6 +226,7 @@
+ 					} // col iterator
+ 				} // row iterator
+ 				break;
++			#endif
+ 
+ 
+ 
+diff -ruN '--exclude=*.o' '--exclude=*.elf' a/OCT_OS/_OCT_exe_keys/key_PAGE_sel_TRACK.h b/OCT_OS/_OCT_exe_keys/key_PAGE_sel_TRACK.h
+--- a/OCT_OS/_OCT_exe_keys/key_PAGE_sel_TRACK.h	2026-07-12 09:38:23.103108344 -0400
++++ b/OCT_OS/_OCT_exe_keys/key_PAGE_sel_TRACK.h	2026-07-12 09:15:49.926765461 -0400
+@@ -176,10 +176,12 @@
+ 				break;
+ 
+ 
++			#ifndef NEMO
+ 			case KEY_RANDOMIZE:
+ 				// Randomize the Toggle state of the selected tracks
+ 				Page_RNDMZ_selected_tracks( target_page );
+ 				break;
++			#endif
+ 
+ 
+ 			case KEY_FLT:
+diff -ruN '--exclude=*.o' '--exclude=*.elf' a/OCT_OS/_OCT_exe_keys/key_STEP.h b/OCT_OS/_OCT_exe_keys/key_STEP.h
+--- a/OCT_OS/_OCT_exe_keys/key_STEP.h	2026-07-12 09:38:23.103108344 -0400
++++ b/OCT_OS/_OCT_exe_keys/key_STEP.h	2026-07-12 09:15:49.927344466 -0400
+@@ -980,6 +980,7 @@
+ 
+ 
+ 
++			#ifndef NEMO
+ 			case KEY_RANDOMIZE:
+ 				// Coordinates of already selected step
+ 				row = target_page->stepSelectionSingleRow;
+@@ -988,6 +989,7 @@
+ 				Step_exe_randomize( target_page, target_page->Step[row][col] );
+ 
+ 				break;
++			#endif
+ 
+ 
+ 
+diff -ruN '--exclude=*.o' '--exclude=*.elf' a/OCT_OS/_OCT_global/defs_functions.h b/OCT_OS/_OCT_global/defs_functions.h
+--- a/OCT_OS/_OCT_global/defs_functions.h	2026-07-12 09:38:23.104827832 -0400
++++ b/OCT_OS/_OCT_global/defs_functions.h	2026-07-12 09:15:49.921661912 -0400
+@@ -71,6 +71,9 @@
+ #ifdef NEMO
+ 	#define	KEY_CLEAR		190
+ 	#define	LED_CLEAR		190
++
++	#define	KEY_RANDOMIZE	190
++	#define	LED_RANDOMIZE	190
+ 	
+ 	#define	KEY_COPY		65
+ 	#define LED_COPY		65
+diff -ruN '--exclude=*.o' '--exclude=*.elf' a/OCT_OS/_OCT_global/includes-definitions.h b/OCT_OS/_OCT_global/includes-definitions.h
+--- a/OCT_OS/_OCT_global/includes-definitions.h	2026-07-12 09:38:23.104827832 -0400
++++ b/OCT_OS/_OCT_global/includes-definitions.h	2026-07-12 09:15:49.922175972 -0400
+@@ -49,6 +49,11 @@
+ 
+ #include "../_OCT_init/Init_memory.h"
+ 
++#ifdef NEMO
++extern bool page_is_chain_follow( Pagestruct* target_page );
++extern unsigned char track_get_window_shift( Pagestruct* target_page );
++#endif
++
+ #include "../_OCT_Viewer/show__master.h"
+ #include "../_OCT_Player/play__master.h"
+ #include "../_OCT_Player/MIDI_IN_interpreter.h"
+@@ -62,6 +67,17 @@
+ #include "../_OCT_exe_keys/key__master.h"
+ #include "../_OCT_exe_rots/rot__master.h"
+ 
++#ifdef NEMO
++/* Nemo helper functions (from NEMO_key_functions.h) — needed by
++ * play_functions.h and MIDI_IN_functions.h under #ifdef NEMO */
++bool page_is_chain_follow( Pagestruct* target_page ){
++	return CHECK_BIT( target_page->track_window_shift, FOLLOW_CHAIN );
++}
++unsigned char track_get_window_shift( Pagestruct* target_page ){
++	return CHECK_MASK( target_page->track_window, NEMO_WINDOW << NEMO_NROF_ROWSHIFT ) * NEMO_NROF_ROWSHIFT;
++}
++#endif
++
+ #include "../_OCT_global/alarm_handlers.h"
+ #include "../_OCT_init/OS_infrastructure.h"
+ #include "../_OCT_global/sysex_functions.h"
+diff -ruN '--exclude=*.o' '--exclude=*.elf' a/OCT_OS/_OCT_init/OS_infrastructure.h b/OCT_OS/_OCT_init/OS_infrastructure.h
+--- a/OCT_OS/_OCT_init/OS_infrastructure.h	2026-07-12 09:38:23.105510331 -0400
++++ b/OCT_OS/_OCT_init/OS_infrastructure.h	2026-07-12 09:15:49.929028793 -0400
+@@ -626,8 +626,9 @@
+ 
+ 	// ALARM: Page refresh call
+ #ifdef CONSTANT_BLINK
++#if !defined(__linux__) && !defined(_WIN32)
+ 	cyg_alarm_create(		counter_hdl,
+-							page_refreshAlarm_handler,
++						page_refreshAlarm_handler,
+ 							(cyg_addrword_t)&page_refreshAlarm_index,
+ 							&page_refreshAlarm_hdl,
+ 							&page_refreshAlarm_obj );
+@@ -636,6 +637,7 @@
+ 							cyg_current_time() + PAGE_REFRESH_INTERVAL + 2,
+ 							PAGE_REFRESH_INTERVAL + 2 );
+ #endif
++#endif
+ 
+ }
+ 
+diff -ruN '--exclude=*.o' '--exclude=*.elf' a/OCT_OS/_OCT_interrupts/Intr_KEY_functions.h b/OCT_OS/_OCT_interrupts/Intr_KEY_functions.h
+--- a/OCT_OS/_OCT_interrupts/Intr_KEY_functions.h	2026-07-12 09:38:23.105707648 -0400
++++ b/OCT_OS/_OCT_interrupts/Intr_KEY_functions.h	2026-07-12 09:15:49.936147414 -0400
+@@ -533,9 +533,7 @@
+ //		}
+ //	}
+ 
+-	// unsigned char MIR [2][17][3];
+-	// 204 = 2 x 17 x 3
+-	memset( MIR, 0, 204);
++	memset( MIR, 0, sizeof(MIR));
+ 
+ }
+ 
+diff -ruN '--exclude=*.o' '--exclude=*.elf' a/OCT_OS/_OCT_interrupts/Intr_KEY_GRID.h b/OCT_OS/_OCT_interrupts/Intr_KEY_GRID.h
+--- a/OCT_OS/_OCT_interrupts/Intr_KEY_GRID.h	2026-07-12 09:38:23.105707648 -0400
++++ b/OCT_OS/_OCT_interrupts/Intr_KEY_GRID.h	2026-07-12 09:15:49.936167787 -0400
+@@ -89,9 +89,11 @@
+ 							cyg_mbox_tryput ( keyNdx_mbox_handle, (void*) KEY_SOLO );
+ 							break;
+ 
++						#ifndef NEMO
+ 						case KEY_RANDOMIZE:
+ 							cyg_mbox_tryput ( keyNdx_mbox_handle, (void*) KEY_RANDOMIZE );
+ 							break;
++						#endif
+ 
+ 						case KEY_ZOOM:
+ 							cyg_mbox_tryput ( keyNdx_mbox_handle, (void*) KEY_ZOOM );
+diff -ruN '--exclude=*.o' '--exclude=*.elf' a/OCT_OS/_OCT_interrupts/Intr_TMR.h b/OCT_OS/_OCT_interrupts/Intr_TMR.h
+--- a/OCT_OS/_OCT_interrupts/Intr_TMR.h	2026-07-12 09:38:23.105707648 -0400
++++ b/OCT_OS/_OCT_interrupts/Intr_TMR.h	2026-07-12 09:15:49.936373327 -0400
+@@ -212,18 +212,24 @@
+ 	// TIMER_TICK_COUNTER: INCREMENT - wrap depends on TIMER_TICKS_PER_16TH - resolution
+ 	G_TTC_abs_value = (G_TTC_abs_value % 12) + 1;
+ 
++#if !defined(__linux__) && !defined(_WIN32)
+ 	// Send MIDI CLOCK on every other TTC starting at 1
+ 	if ( (G_TTC_abs_value) % 2 == 1) {
+ 
+ 		// Consider the clocksource setting - and throughput the clock when slaved - and told to do so
+ 		if (	( G_clock_source == INT )
+-				||	(	( G_clock_source == EXT )
+-					&&	MIDICLOCK_PASSTHROUGH == TRUE )
+-			){
++			||	(	( G_clock_source == EXT )
++				&&	MIDICLOCK_PASSTHROUGH == TRUE )
++		){
+ 
+ 			MIDI_send( MIDI_CLOCK, MIDICLOCK_CLOCK, 0, 0 );
+ 		}
+ 	}
++#else
++	/* On Linux the MIDI clock is sent by the sequencer thread BEFORE
++	 * acquiring the scheduler lock, to eliminate jitter from mutex
++	 * contention with the render/OSC threads. See main_linux.c. */
++#endif
+ 
+ 
+ 	// Interpret according to the G_run_bit of the sequencer
+@@ -300,6 +306,13 @@
+ 		// ( 50000000 / (3 * 16) )  *  60 / G_master_tempo;
+ 		62500000 / G_master_tempo;
+ 
++#if defined(__linux__) || defined(_WIN32)
++	/* Precompute the nanosecond interval per 48-PPQN tick so the
++	 * sequencer thread avoids FP division in its hot loop. */
++	extern volatile long g_tick_ns;
++	g_tick_ns = (long)(60.0 / ((double)G_master_tempo * 48.0) * 1e9 + 0.5);
++#endif
++
+ 	// Fill up Timer1: countdown duration -
+ 	// Done in the Timer DSR - in order to not disrupt the ticking when using the rotary knobs.
+ }
+diff -ruN '--exclude=*.o' '--exclude=*.elf' a/OCT_OS/_OCT_Player/play_functions.h b/OCT_OS/_OCT_Player/play_functions.h
+--- a/OCT_OS/_OCT_Player/play_functions.h	2026-07-12 09:38:23.100837355 -0400
++++ b/OCT_OS/_OCT_Player/play_functions.h	2026-07-12 09:15:49.928706122 -0400
+@@ -581,6 +581,7 @@
+ 	// Remember the initial PLAYMODE status
+ 	unsigned char PLAY_MODE_STATUS_original = PLAY_MODE_STATUS;
+ 
++
+ /*	d_iag_printf( ">> switch bank:%d :: %d->%d mode:%d\n",
+ 			target_bank,
+ 			GRID_p_selection[target_bank],
+diff -ruN '--exclude=*.o' '--exclude=*.elf' a/OCT_OS/_OCT_Player/play_play.h b/OCT_OS/_OCT_Player/play_play.h
+--- a/OCT_OS/_OCT_Player/play_play.h	2026-07-12 09:38:23.100837355 -0400
++++ b/OCT_OS/_OCT_Player/play_play.h	2026-07-12 09:15:49.928772829 -0400
+@@ -140,6 +140,7 @@
+ 
+ 	// Line up the event in the MIDI Queue
+ 	MIDI_queue_insert( note_event );
++
+ }
+ 
+ 
+@@ -405,6 +406,7 @@
+ {
+ 	Stepstruct*		stepPt 			= target_page->Step[phys_row][locator-1];
+ 
++
+ 	if( 	( ( which_col == CURRENT )
+ 		&&	( stepPt->attr_STA < STEP_DEF_START ) )
+ 		||	( ( which_col == NEXT )
+@@ -1428,6 +1430,7 @@
+ 	Stepstruct*	  hyperStepPt;
+ 	unsigned char gateSize = 0;
+ 
++
+ 	// Extract the track pointer - syntax simplification
+ 	Trackstruct* target_track 	= target_page->Track[row];
+ 	Trackstruct* trackPt		= target_track;

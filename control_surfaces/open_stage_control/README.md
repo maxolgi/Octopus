@@ -1,0 +1,155 @@
+# Open Stage Control surfaces for Octopus / Nemo
+
+Ready-to-use [Open Stage Control](https://openstagecontrol.ammd.net) sessions
+that reproduce the Genoqs Octopus (10×16 grid) and Nemo (8×16 grid) front
+panels, driving the Linux port via OSC with live LED feedback from the
+engine's MIR framebuffer.
+
+## Files
+
+| File | Purpose |
+|---|---|
+| `octopus.json` | Full Octopus session — 10-track × 16-step grid + circle + rotaries |
+| `nemo.json` | Nemo session — 8-track × 16-step grid |
+| `octopus_mir.js` | Custom module: decodes the engine's `/mir` blob into per-widget LED colour/lit updates |
+| `build_sessions.py` | Generator script — re-builds both JSON files from the key/rotary maps |
+
+## How it fits together
+
+```
+ tablet / browser (OSC client)
+        │  websocket
+        ▼
+ Open Stage Control server ──custom-module──►  parses /mir (170-byte hex)
+   │  --osc-port 9000  (listens for engine)        │
+   │  --send 127.0.0.1:8000 (engine input)         ▼
+   │          ┌──── widgets send:  /key <idx> <1|0>
+   │          │      knobs send:  /rotary <idx> <1|2>
+   │          └──── module emits: /key <idx> <lit>  +  /<widget_id>/colorWidget <colour>
+   │
+   ▼ UDP 8000                    ▲ UDP 9000
+ Octopus/Nemo engine ────────────►  sends /mir every frame (~60 Hz)
+```
+
+- **Buttons** are decoupled `push` widgets: pressing sends
+  `/key <idx> 1`, releasing sends `/key <idx> 0`.
+- **LED feedback** is decoupled from presses: the custom module reads the
+  engine's single `/mir` message and, for each changed LED, pushes a lit
+  state (`/key <idx> <0|1>`) and a colour (`/<id>/colorWidget`) to every
+  client.  Colours map red→`#dd2222`, green→`#33dd33`, yellow→`#ddcc22`.
+- **Rotaries** are knob widgets whose `onValue` script emits discrete
+  `/rotary <idx> <2=inc|1=dec>` messages (the engine expects relative
+  encoder deltas, not absolute positions).
+
+## Prerequisites
+
+1. The Octopus (or Nemo) binary built and running:
+
+   ```bash
+   cd /home/flibb/Octopus
+   make            # or: make NEMO=1
+   ./build/octopus &
+   ```
+
+   The engine listens for OSC on **UDP 8000** and emits `/mir` to **UDP 9000**.
+
+2. Open Stage Control installed (the Electron app or the node `npm` package).
+
+## Launching
+
+From this directory:
+
+```bash
+open-stage-control \
+  --osc-port 9000 \
+  --send 127.0.0.1:8000 \
+  --custom-module ./octopus_mir.js \
+  --load ./octopus.json
+```
+
+For Nemo, swap `--load ./nemo.json`.
+
+The server opens a client window automatically.  To use a tablet/phone,
+point its browser at the server's HTTP address (shown in the launcher),
+e.g. `http://<server-ip>:8080`.
+
+### Verifying it works
+
+1. The grid should be dark.  Press a pad — it stays dark momentarily, then
+   lights green once the next `/mir` frame arrives (the step is now active).
+2. Press **STOP** then **P1** (play).  The lauflicht (running red light)
+   should walk across the active row.
+3. Turn the **TPO** knob — tempo changes.
+4. The transport buttons (REC / STOP / PSE / P1 / P2 / P4) reflect engine
+   state in real time.
+
+## Layout
+
+```
+┌─ header:  [title] [TPO knob] [BPM input] [SAVE] ─────────────────────┐
+│                                                                       │
+│  ┌─ body ─────────────────────────────────────────────────────────┐  │
+│  │ ┌─ matrix section ──────────┐  ┌─ circle ───────────────────┐  │  │
+│  │ │ R9 │ attr │ 16×10 grid │ mut │ R9 │  notes (C C# D ...)    │  │  │
+│  │ │ R8 │ attr │   pads     │ mut │ R8 │  scale nav (MOD SEL CAD)│  │  │
+│  │ │ .. │ ..   │            │ ..  │ .. │  zoom (GRID PAGE TRK..) │  │  │
+│  │ │ R0 │ attr │            │ mut │ R0 │  transport REC STOP ..  │  │  │
+│  │ └─────────────────────────────┘  │  scales / big-knob / chain │  │
+│  │                                  │  program / chord (0-6)    │  │
+│  │                                  └───────────────────────────┘  │  │
+│  └──────────────────────────────────────────────────────────────────┘  │
+│                                                                       │
+│  ┌─ mix strip: MIX SEL ATR VOL PAN MOD EXP U0-U5 MUT EDT ESC ──────┐  │
+│  └──────────────────────────────────────────────────────────────────┘  │
+└───────────────────────────────────────────────────────────────────────┘
+```
+
+## OSC address summary
+
+### Widgets → engine (UDP 8000)
+
+| Widget | OSC | Args |
+|---|---|---|
+| Step pad / any button | `/key` | `idx` (1–260), `press` (1/0) |
+| Rotary knob | `/rotary` | `idx` (0–20), `dir` (2=inc, 1=dec) |
+| Tempo input | `/tempo` | `bpm` (10–199) |
+| Save button | `/save` | — |
+
+Name-based addresses also work (engine supports both):
+`/key/REC 1`, `/rotary/VEL 2`, etc. — see `keymap.md` for the full map.
+
+### Engine → custom module (UDP 9000)
+
+| OSC | Content |
+|---|---|
+| `/mir` | 170-byte hex string — full LED framebuffer (2 sets × 17 rows × 5 bytes) |
+
+The custom module expands this into per-widget updates; clients never see
+the raw `/mir` blob.
+
+## Customising / regenerating
+
+The JSON files are generated by `build_sessions.py`.  To change colours,
+sizes, layout, or add widgets, edit the script and re-run:
+
+```bash
+python3 build_sessions.py
+```
+
+Key maps live at the top of the script (`NOTES`, `ZOOM`, `TRANSPORT`,
+`ATTR`, `MUT`, `MIX`, etc.) and mirror the tables in `keymap.md`.  The
+MIR-to-widget position table is built in both `build_sessions.py`
+(for widget ids) and `octopus_mir.js` (for LED decoding) — keep them in
+sync if you change the grid dimensions.
+
+## Troubleshooting
+
+- **Nothing lights up** — confirm the engine is running and sending to
+  9000: `oscmonitor 9000` (or `python3 -c "import socket; s=socket.socket(socket.AF_INET,socket.SOCK_DGRAM); s.bind(('',9000)); print(s.recvfrom(4096)[:20])"`).
+- **Pads don't toggle** — check the engine hears OSC: it logs
+  `osc_server: listening on port 8000` at startup.  Send a test:
+  `oscsend localhost 8000 /key ii 241 1` (press PLAY).
+- **Session won't load** — make sure you're loading the `.json` file, not
+  the `.js` module.  The custom module goes in `--custom-module`.
+- **Duplicate-id warnings** — harmless; both the header and circle may
+  reference the same transport button as clones.

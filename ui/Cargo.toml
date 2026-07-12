@@ -1,0 +1,18 @@
+[package]
+name = "octopus_ui"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "octopus_ui"
+path = "src/main.rs"
+
+[dependencies]
+eframe = "0.29"
+tokio = { version = "1", features = ["full"] }
+tokio-tungstenite = "0.24"
+serde_json = "1"
+futures-util = "0.3"
+
+[profile.release]
+opt-level = 2

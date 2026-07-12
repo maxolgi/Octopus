@@ -1,0 +1,34 @@
+--- a/OCT_OS/_OCT_global/includes-declarations.h
++++ b/OCT_OS/_OCT_global/includes-declarations.h
+@@ -29,23 +29,25 @@
+ // ===============================================================================================
+ 
+ 
+-// 
++//
+ // PLATFORM INDEPENDENT INCLUDE FILES
+ //
+ #include <stdio.h>
+ #include <stdlib.h>
+-#include <cyg/infra/diag.h> // needed for d_iag_printf()
+ 
+ //
+-// PLATFORM SPECIFIC INCLUDE FILES
++// PLATFORM SPECIFIC INCLUDE FILES — replaced by hal_linux.h
+ //
+-#include <cyg/kernel/kapi.h>
+-#include <cyg/hal/hal_io.h>
+-#include <cyg/io/flash.h>
++#include "hal_linux.h"
+ 
+ #include "../_OCT_global/sts.h"
+ #include "../_OCT_global/types-general.h"
+ #include "../_OCT_global/defs_general.h"
++#ifdef NEMO
++#define HEADER(FILE) #FILE
++#include "NEMO_defs_general.h"
++#undef HEADER
++#endif
+ #include "../_OCT_objects/Direction.h"
+ #include "../_OCT_objects/Runtime.h"
+ #include "../_OCT_global/function_signatures.h"

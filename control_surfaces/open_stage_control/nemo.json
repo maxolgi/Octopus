@@ -1,0 +1,2305 @@
+{
+  "type": "session",
+  "version": "1.99.99",
+  "content": {
+    "type": "root",
+    "id": "root",
+    "linkId": "",
+    "colorBg": "#101010",
+    "layout": "vertical",
+    "scroll": true,
+    "widgets": [
+      {
+        "type": "panel",
+        "id": "header",
+        "layout": "horizontal",
+        "scroll": false,
+        "widgets": [
+          {
+            "type": "text",
+            "id": "title",
+            "value": "NEMO",
+            "width": 100,
+            "height": 40,
+            "css": "font-size:16px;font-weight:bold;color:#ccc;"
+          },
+          {
+            "type": "knob",
+            "id": "rot_TPO",
+            "label": "TPO",
+            "bypass": true,
+            "sensitivity": 1,
+            "default": 0.5,
+            "range": {
+              "min": 0,
+              "max": 1
+            },
+            "width": 42,
+            "height": 54,
+            "onValue": "if(locals.p===undefined){locals.p=value}else if(value!==locals.p){send('127.0.0.1:8000','/rotary',0,value>locals.p?2:1);locals.p=value}",
+            "colorWidget": "#8899bb"
+          },
+          {
+            "type": "input",
+            "id": "tempo",
+            "label": "BPM",
+            "numeric": true,
+            "address": "/tempo",
+            "target": "127.0.0.1:8000",
+            "width": 80,
+            "height": 40,
+            "default": 120,
+            "align": "center",
+            "unit": " bpm",
+            "validation": "^([1-9][0-9]?|1[0-9]{2})$"
+          },
+          {
+            "type": "button",
+            "id": "save_btn",
+            "label": "SAVE",
+            "address": "/save",
+            "target": "127.0.0.1:8000",
+            "mode": "tap",
+            "on": 1,
+            "width": 60,
+            "height": 40,
+            "colorWidget": "#aa6622"
+          }
+        ],
+        "colorBg": "#262626",
+        "height": 50
+      },
+      {
+        "type": "panel",
+        "id": "body",
+        "layout": "horizontal",
+        "scroll": false,
+        "widgets": [
+          {
+            "type": "panel",
+            "id": "matrix_section",
+            "layout": "horizontal",
+            "scroll": false,
+            "widgets": [
+              {
+                "type": "panel",
+                "id": "rot_left",
+                "layout": "vertical",
+                "scroll": false,
+                "widgets": [
+                  {
+                    "type": "knob",
+                    "id": "rot_R0",
+                    "label": "R0",
+                    "bypass": true,
+                    "sensitivity": 1,
+                    "default": 0.5,
+                    "range": {
+                      "min": 0,
+                      "max": 1
+                    },
+                    "width": 42,
+                    "height": 54,
+                    "onValue": "if(locals.p===undefined){locals.p=value}else if(value!==locals.p){send('127.0.0.1:8000','/rotary',20,value>locals.p?2:1);locals.p=value}",
+                    "colorWidget": "#8899bb"
+                  },
+                  {
+                    "type": "knob",
+                    "id": "rot_R1",
+                    "label": "R1",
+                    "bypass": true,
+                    "sensitivity": 1,
+                    "default": 0.5,
+                    "range": {
+                      "min": 0,
+                      "max": 1
+                    },
+                    "width": 42,
+                    "height": 54,
+                    "onValue": "if(locals.p===undefined){locals.p=value}else if(value!==locals.p){send('127.0.0.1:8000','/rotary',19,value>locals.p?2:1);locals.p=value}",
+                    "colorWidget": "#8899bb"
+                  },
+                  {
+                    "type": "knob",
+                    "id": "rot_R2",
+                    "label": "R2",
+                    "bypass": true,
+                    "sensitivity": 1,
+                    "default": 0.5,
+                    "range": {
+                      "min": 0,
+                      "max": 1
+                    },
+                    "width": 42,
+                    "height": 54,
+                    "onValue": "if(locals.p===undefined){locals.p=value}else if(value!==locals.p){send('127.0.0.1:8000','/rotary',18,value>locals.p?2:1);locals.p=value}",
+                    "colorWidget": "#8899bb"
+                  },
+                  {
+                    "type": "knob",
+                    "id": "rot_R3",
+                    "label": "R3",
+                    "bypass": true,
+                    "sensitivity": 1,
+                    "default": 0.5,
+                    "range": {
+                      "min": 0,
+                      "max": 1
+                    },
+                    "width": 42,
+                    "height": 54,
+                    "onValue": "if(locals.p===undefined){locals.p=value}else if(value!==locals.p){send('127.0.0.1:8000','/rotary',17,value>locals.p?2:1);locals.p=value}",
+                    "colorWidget": "#8899bb"
+                  },
+                  {
+                    "type": "knob",
+                    "id": "rot_R4",
+                    "label": "R4",
+                    "bypass": true,
+                    "sensitivity": 1,
+                    "default": 0.5,
+                    "range": {
+                      "min": 0,
+                      "max": 1
+                    },
+                    "width": 42,
+                    "height": 54,
+                    "onValue": "if(locals.p===undefined){locals.p=value}else if(value!==locals.p){send('127.0.0.1:8000','/rotary',16,value>locals.p?2:1);locals.p=value}",
+                    "colorWidget": "#8899bb"
+                  },
+                  {
+                    "type": "knob",
+                    "id": "rot_R5",
+                    "label": "R5",
+                    "bypass": true,
+                    "sensitivity": 1,
+                    "default": 0.5,
+                    "range": {
+                      "min": 0,
+                      "max": 1
+                    },
+                    "width": 42,
+                    "height": 54,
+                    "onValue": "if(locals.p===undefined){locals.p=value}else if(value!==locals.p){send('127.0.0.1:8000','/rotary',15,value>locals.p?2:1);locals.p=value}",
+                    "colorWidget": "#8899bb"
+                  },
+                  {
+                    "type": "knob",
+                    "id": "rot_R6",
+                    "label": "R6",
+                    "bypass": true,
+                    "sensitivity": 1,
+                    "default": 0.5,
+                    "range": {
+                      "min": 0,
+                      "max": 1
+                    },
+                    "width": 42,
+                    "height": 54,
+                    "onValue": "if(locals.p===undefined){locals.p=value}else if(value!==locals.p){send('127.0.0.1:8000','/rotary',14,value>locals.p?2:1);locals.p=value}",
+                    "colorWidget": "#8899bb"
+                  },
+                  {
+                    "type": "knob",
+                    "id": "rot_R7",
+                    "label": "R7",
+                    "bypass": true,
+                    "sensitivity": 1,
+                    "default": 0.5,
+                    "range": {
+                      "min": 0,
+                      "max": 1
+                    },
+                    "width": 42,
+                    "height": 54,
+                    "onValue": "if(locals.p===undefined){locals.p=value}else if(value!==locals.p){send('127.0.0.1:8000','/rotary',13,value>locals.p?2:1);locals.p=value}",
+                    "colorWidget": "#8899bb"
+                  }
+                ],
+                "colorBg": "#222",
+                "width": 46,
+                "height": 292
+              },
+              {
+                "type": "panel",
+                "id": "attr_col",
+                "layout": "vertical",
+                "scroll": false,
+                "widgets": [
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_1",
+                    "preArgs": [
+                      1
+                    ],
+                    "label": "VEL",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_2",
+                    "preArgs": [
+                      2
+                    ],
+                    "label": "PIT",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_3",
+                    "preArgs": [
+                      3
+                    ],
+                    "label": "LEN",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_4",
+                    "preArgs": [
+                      4
+                    ],
+                    "label": "STR",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_5",
+                    "preArgs": [
+                      5
+                    ],
+                    "label": "POS",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_6",
+                    "preArgs": [
+                      6
+                    ],
+                    "label": "DIR",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_7",
+                    "preArgs": [
+                      7
+                    ],
+                    "label": "AMT",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_8",
+                    "preArgs": [
+                      8
+                    ],
+                    "label": "GRV",
+                    "target": "127.0.0.1:8000"
+                  }
+                ],
+                "colorBg": "#222",
+                "width": 34,
+                "height": 292
+              },
+              {
+                "type": "matrix",
+                "id": "grid",
+                "layout": "grid",
+                "gridTemplate": 16,
+                "quantity": 128,
+                "widgetType": "button",
+                "traversing": "smart",
+                "scroll": false,
+                "colorBg": "#1a1a1a",
+                "width": 424,
+                "height": 212,
+                "props": {
+                  "id": "npad_#{$}",
+                  "address": "/key",
+                  "preArgs": [
+                    "#{11 + ($ % 16) * 11 + 7 - ($ - $ % 16) / 16}"
+                  ],
+                  "mode": "push",
+                  "decoupled": true,
+                  "on": 1,
+                  "off": 0,
+                  "label": false,
+                  "width": 26,
+                  "height": 26,
+                  "alphaFillOn": 1,
+                  "alphaFillOff": 0.08,
+                  "target": "127.0.0.1:8000"
+                }
+              },
+              {
+                "type": "panel",
+                "id": "mut_col",
+                "layout": "vertical",
+                "scroll": false,
+                "widgets": [
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_187",
+                    "preArgs": [
+                      187
+                    ],
+                    "label": "TGL",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_188",
+                    "preArgs": [
+                      188
+                    ],
+                    "label": "SOL",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_189",
+                    "preArgs": [
+                      189
+                    ],
+                    "label": "CLR",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_190",
+                    "preArgs": [
+                      190
+                    ],
+                    "label": "RND",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_191",
+                    "preArgs": [
+                      191
+                    ],
+                    "label": "FLT",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_192",
+                    "preArgs": [
+                      192
+                    ],
+                    "label": "RMX",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_193",
+                    "preArgs": [
+                      193
+                    ],
+                    "label": "EFF",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_194",
+                    "preArgs": [
+                      194
+                    ],
+                    "label": "ZOM",
+                    "target": "127.0.0.1:8000"
+                  }
+                ],
+                "colorBg": "#222",
+                "width": 34,
+                "height": 292
+              },
+              {
+                "type": "panel",
+                "id": "rot_right",
+                "layout": "vertical",
+                "scroll": false,
+                "widgets": [
+                  {
+                    "type": "knob",
+                    "id": "rot_VEL",
+                    "label": "VEL",
+                    "bypass": true,
+                    "sensitivity": 1,
+                    "default": 0.5,
+                    "range": {
+                      "min": 0,
+                      "max": 1
+                    },
+                    "width": 42,
+                    "height": 54,
+                    "onValue": "if(locals.p===undefined){locals.p=value}else if(value!==locals.p){send('127.0.0.1:8000','/rotary',1,value>locals.p?2:1);locals.p=value}",
+                    "colorWidget": "#8899bb"
+                  },
+                  {
+                    "type": "knob",
+                    "id": "rot_PIT",
+                    "label": "PIT",
+                    "bypass": true,
+                    "sensitivity": 1,
+                    "default": 0.5,
+                    "range": {
+                      "min": 0,
+                      "max": 1
+                    },
+                    "width": 42,
+                    "height": 54,
+                    "onValue": "if(locals.p===undefined){locals.p=value}else if(value!==locals.p){send('127.0.0.1:8000','/rotary',2,value>locals.p?2:1);locals.p=value}",
+                    "colorWidget": "#8899bb"
+                  },
+                  {
+                    "type": "knob",
+                    "id": "rot_LEN",
+                    "label": "LEN",
+                    "bypass": true,
+                    "sensitivity": 1,
+                    "default": 0.5,
+                    "range": {
+                      "min": 0,
+                      "max": 1
+                    },
+                    "width": 42,
+                    "height": 54,
+                    "onValue": "if(locals.p===undefined){locals.p=value}else if(value!==locals.p){send('127.0.0.1:8000','/rotary',3,value>locals.p?2:1);locals.p=value}",
+                    "colorWidget": "#8899bb"
+                  },
+                  {
+                    "type": "knob",
+                    "id": "rot_STR",
+                    "label": "STR",
+                    "bypass": true,
+                    "sensitivity": 1,
+                    "default": 0.5,
+                    "range": {
+                      "min": 0,
+                      "max": 1
+                    },
+                    "width": 42,
+                    "height": 54,
+                    "onValue": "if(locals.p===undefined){locals.p=value}else if(value!==locals.p){send('127.0.0.1:8000','/rotary',4,value>locals.p?2:1);locals.p=value}",
+                    "colorWidget": "#8899bb"
+                  },
+                  {
+                    "type": "knob",
+                    "id": "rot_POS",
+                    "label": "POS",
+                    "bypass": true,
+                    "sensitivity": 1,
+                    "default": 0.5,
+                    "range": {
+                      "min": 0,
+                      "max": 1
+                    },
+                    "width": 42,
+                    "height": 54,
+                    "onValue": "if(locals.p===undefined){locals.p=value}else if(value!==locals.p){send('127.0.0.1:8000','/rotary',5,value>locals.p?2:1);locals.p=value}",
+                    "colorWidget": "#8899bb"
+                  },
+                  {
+                    "type": "knob",
+                    "id": "rot_DIR",
+                    "label": "DIR",
+                    "bypass": true,
+                    "sensitivity": 1,
+                    "default": 0.5,
+                    "range": {
+                      "min": 0,
+                      "max": 1
+                    },
+                    "width": 42,
+                    "height": 54,
+                    "onValue": "if(locals.p===undefined){locals.p=value}else if(value!==locals.p){send('127.0.0.1:8000','/rotary',6,value>locals.p?2:1);locals.p=value}",
+                    "colorWidget": "#8899bb"
+                  },
+                  {
+                    "type": "knob",
+                    "id": "rot_AMT",
+                    "label": "AMT",
+                    "bypass": true,
+                    "sensitivity": 1,
+                    "default": 0.5,
+                    "range": {
+                      "min": 0,
+                      "max": 1
+                    },
+                    "width": 42,
+                    "height": 54,
+                    "onValue": "if(locals.p===undefined){locals.p=value}else if(value!==locals.p){send('127.0.0.1:8000','/rotary',7,value>locals.p?2:1);locals.p=value}",
+                    "colorWidget": "#8899bb"
+                  },
+                  {
+                    "type": "knob",
+                    "id": "rot_GRV",
+                    "label": "GRV",
+                    "bypass": true,
+                    "sensitivity": 1,
+                    "default": 0.5,
+                    "range": {
+                      "min": 0,
+                      "max": 1
+                    },
+                    "width": 42,
+                    "height": 54,
+                    "onValue": "if(locals.p===undefined){locals.p=value}else if(value!==locals.p){send('127.0.0.1:8000','/rotary',8,value>locals.p?2:1);locals.p=value}",
+                    "colorWidget": "#8899bb"
+                  }
+                ],
+                "colorBg": "#222",
+                "width": 46,
+                "height": 292
+              }
+            ],
+            "colorBg": "#222",
+            "width": 744,
+            "height": 292
+          },
+          {
+            "type": "panel",
+            "id": "circle",
+            "layout": "vertical",
+            "scroll": true,
+            "widgets": [
+              {
+                "type": "panel",
+                "id": "notes",
+                "layout": "horizontal",
+                "scroll": false,
+                "widgets": [
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_212",
+                    "preArgs": [
+                      212
+                    ],
+                    "label": "C",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_211",
+                    "preArgs": [
+                      211
+                    ],
+                    "label": "C#",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_210",
+                    "preArgs": [
+                      210
+                    ],
+                    "label": "D",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_209",
+                    "preArgs": [
+                      209
+                    ],
+                    "label": "D#",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_208",
+                    "preArgs": [
+                      208
+                    ],
+                    "label": "E",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_217",
+                    "preArgs": [
+                      217
+                    ],
+                    "label": "F",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_225",
+                    "preArgs": [
+                      225
+                    ],
+                    "label": "F#",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_226",
+                    "preArgs": [
+                      226
+                    ],
+                    "label": "G",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_235",
+                    "preArgs": [
+                      235
+                    ],
+                    "label": "G#",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_236",
+                    "preArgs": [
+                      236
+                    ],
+                    "label": "A",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_237",
+                    "preArgs": [
+                      237
+                    ],
+                    "label": "A#",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_238",
+                    "preArgs": [
+                      238
+                    ],
+                    "label": "B",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_239",
+                    "preArgs": [
+                      239
+                    ],
+                    "label": "Cu",
+                    "target": "127.0.0.1:8000"
+                  }
+                ]
+              },
+              {
+                "type": "panel",
+                "id": "scalenav",
+                "layout": "horizontal",
+                "scroll": false,
+                "widgets": [
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_221",
+                    "preArgs": [
+                      221
+                    ],
+                    "label": "MOD",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_222",
+                    "preArgs": [
+                      222
+                    ],
+                    "label": "SEL",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_230",
+                    "preArgs": [
+                      230
+                    ],
+                    "label": "CAD",
+                    "target": "127.0.0.1:8000"
+                  }
+                ]
+              },
+              {
+                "type": "panel",
+                "id": "zoom",
+                "layout": "grid",
+                "scroll": false,
+                "widgets": [
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 36,
+                    "height": 32,
+                    "id": "k_218",
+                    "preArgs": [
+                      218
+                    ],
+                    "label": "GRID",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 36,
+                    "height": 32,
+                    "id": "k_219",
+                    "preArgs": [
+                      219
+                    ],
+                    "label": "PAGE",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 36,
+                    "height": 32,
+                    "id": "k_220",
+                    "preArgs": [
+                      220
+                    ],
+                    "label": "TRK",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 36,
+                    "height": 32,
+                    "id": "k_227",
+                    "preArgs": [
+                      227
+                    ],
+                    "label": "STEP",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 36,
+                    "height": 32,
+                    "id": "k_228",
+                    "preArgs": [
+                      228
+                    ],
+                    "label": "MAP",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 36,
+                    "height": 32,
+                    "id": "k_229",
+                    "preArgs": [
+                      229
+                    ],
+                    "label": "PLAY",
+                    "target": "127.0.0.1:8000"
+                  }
+                ],
+                "gridTemplate": 3
+              },
+              {
+                "type": "panel",
+                "id": "transport",
+                "layout": "horizontal",
+                "scroll": false,
+                "widgets": [
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 34,
+                    "height": 34,
+                    "id": "k_223",
+                    "preArgs": [
+                      223
+                    ],
+                    "label": "REC",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 34,
+                    "height": 34,
+                    "id": "k_231",
+                    "preArgs": [
+                      231
+                    ],
+                    "label": "STOP",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 34,
+                    "height": 34,
+                    "id": "k_232",
+                    "preArgs": [
+                      232
+                    ],
+                    "label": "PSE",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 34,
+                    "height": 34,
+                    "id": "k_241",
+                    "preArgs": [
+                      241
+                    ],
+                    "label": "P1",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 34,
+                    "height": 34,
+                    "id": "k_240",
+                    "preArgs": [
+                      240
+                    ],
+                    "label": "P2",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 34,
+                    "height": 34,
+                    "id": "k_250",
+                    "preArgs": [
+                      250
+                    ],
+                    "label": "P4",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 34,
+                    "height": 34,
+                    "id": "k_251",
+                    "preArgs": [
+                      251
+                    ],
+                    "label": "ALN",
+                    "target": "127.0.0.1:8000"
+                  }
+                ]
+              },
+              {
+                "type": "panel",
+                "id": "scales",
+                "layout": "horizontal",
+                "scroll": false,
+                "widgets": [
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_243",
+                    "preArgs": [
+                      243
+                    ],
+                    "label": "MY",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_244",
+                    "preArgs": [
+                      244
+                    ],
+                    "label": "PEN",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_245",
+                    "preArgs": [
+                      245
+                    ],
+                    "label": "WHL",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_246",
+                    "preArgs": [
+                      246
+                    ],
+                    "label": "MAJ",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_247",
+                    "preArgs": [
+                      247
+                    ],
+                    "label": "MIN",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_248",
+                    "preArgs": [
+                      248
+                    ],
+                    "label": "DIM",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_249",
+                    "preArgs": [
+                      249
+                    ],
+                    "label": "CHR",
+                    "target": "127.0.0.1:8000"
+                  }
+                ]
+              },
+              {
+                "type": "panel",
+                "id": "bigknob",
+                "layout": "horizontal",
+                "scroll": false,
+                "widgets": [
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_201",
+                    "preArgs": [
+                      201
+                    ],
+                    "label": "1",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_200",
+                    "preArgs": [
+                      200
+                    ],
+                    "label": "2",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_199",
+                    "preArgs": [
+                      199
+                    ],
+                    "label": "3",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_198",
+                    "preArgs": [
+                      198
+                    ],
+                    "label": "4",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_197",
+                    "preArgs": [
+                      197
+                    ],
+                    "label": "5",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_207",
+                    "preArgs": [
+                      207
+                    ],
+                    "label": "6",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_206",
+                    "preArgs": [
+                      206
+                    ],
+                    "label": "7",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_216",
+                    "preArgs": [
+                      216
+                    ],
+                    "label": "8",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_215",
+                    "preArgs": [
+                      215
+                    ],
+                    "label": "9",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_224",
+                    "preArgs": [
+                      224
+                    ],
+                    "label": "100",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_233",
+                    "preArgs": [
+                      233
+                    ],
+                    "label": "200",
+                    "target": "127.0.0.1:8000"
+                  }
+                ]
+              },
+              {
+                "type": "panel",
+                "id": "chain",
+                "layout": "horizontal",
+                "scroll": false,
+                "widgets": [
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_205",
+                    "preArgs": [
+                      205
+                    ],
+                    "label": "CH1",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_204",
+                    "preArgs": [
+                      204
+                    ],
+                    "label": "CH2",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_203",
+                    "preArgs": [
+                      203
+                    ],
+                    "label": "CH3",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_202",
+                    "preArgs": [
+                      202
+                    ],
+                    "label": "CH4",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_213",
+                    "preArgs": [
+                      213
+                    ],
+                    "label": "CHN",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_214",
+                    "preArgs": [
+                      214
+                    ],
+                    "label": "FLW",
+                    "target": "127.0.0.1:8000"
+                  }
+                ]
+              },
+              {
+                "type": "panel",
+                "id": "program",
+                "layout": "horizontal",
+                "scroll": false,
+                "widgets": [
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_242",
+                    "preArgs": [
+                      242
+                    ],
+                    "label": "PGM",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_234",
+                    "preArgs": [
+                      234
+                    ],
+                    "label": "TPO",
+                    "target": "127.0.0.1:8000"
+                  }
+                ]
+              },
+              {
+                "type": "panel",
+                "id": "chord",
+                "layout": "horizontal",
+                "scroll": false,
+                "widgets": [
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_258",
+                    "preArgs": [
+                      258
+                    ],
+                    "label": "0",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_257",
+                    "preArgs": [
+                      257
+                    ],
+                    "label": "1",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_256",
+                    "preArgs": [
+                      256
+                    ],
+                    "label": "2",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_255",
+                    "preArgs": [
+                      255
+                    ],
+                    "label": "3",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_254",
+                    "preArgs": [
+                      254
+                    ],
+                    "label": "4",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_253",
+                    "preArgs": [
+                      253
+                    ],
+                    "label": "5",
+                    "target": "127.0.0.1:8000"
+                  },
+                  {
+                    "type": "button",
+                    "mode": "push",
+                    "decoupled": true,
+                    "on": 1,
+                    "off": 0,
+                    "address": "/key",
+                    "alphaFillOn": 1,
+                    "alphaFillOff": 0.1,
+                    "colorWidget": "auto",
+                    "width": 30,
+                    "height": 30,
+                    "id": "k_252",
+                    "preArgs": [
+                      252
+                    ],
+                    "label": "6",
+                    "target": "127.0.0.1:8000"
+                  }
+                ]
+              }
+            ],
+            "colorBg": "#1e1e2e",
+            "width": 440,
+            "height": 292
+          }
+        ],
+        "colorBg": "#181818",
+        "width": 1192,
+        "height": 292
+      },
+      {
+        "type": "panel",
+        "id": "mix_strip",
+        "layout": "horizontal",
+        "scroll": false,
+        "widgets": [
+          {
+            "type": "button",
+            "mode": "push",
+            "decoupled": true,
+            "on": 1,
+            "off": 0,
+            "address": "/key",
+            "alphaFillOn": 1,
+            "alphaFillOff": 0.1,
+            "colorWidget": "auto",
+            "width": 38,
+            "height": 38,
+            "id": "k_21",
+            "preArgs": [
+              21
+            ],
+            "label": "MIX",
+            "target": "127.0.0.1:8000"
+          },
+          {
+            "type": "button",
+            "mode": "push",
+            "decoupled": true,
+            "on": 1,
+            "off": 0,
+            "address": "/key",
+            "alphaFillOn": 1,
+            "alphaFillOff": 0.1,
+            "colorWidget": "auto",
+            "width": 38,
+            "height": 38,
+            "id": "k_32",
+            "preArgs": [
+              32
+            ],
+            "label": "SEL",
+            "target": "127.0.0.1:8000"
+          },
+          {
+            "type": "button",
+            "mode": "push",
+            "decoupled": true,
+            "on": 1,
+            "off": 0,
+            "address": "/key",
+            "alphaFillOn": 1,
+            "alphaFillOff": 0.1,
+            "colorWidget": "auto",
+            "width": 38,
+            "height": 38,
+            "id": "k_43",
+            "preArgs": [
+              43
+            ],
+            "label": "ATR",
+            "target": "127.0.0.1:8000"
+          },
+          {
+            "type": "button",
+            "mode": "push",
+            "decoupled": true,
+            "on": 1,
+            "off": 0,
+            "address": "/key",
+            "alphaFillOn": 1,
+            "alphaFillOff": 0.1,
+            "colorWidget": "auto",
+            "width": 38,
+            "height": 38,
+            "id": "k_54",
+            "preArgs": [
+              54
+            ],
+            "label": "VOL",
+            "target": "127.0.0.1:8000"
+          },
+          {
+            "type": "button",
+            "mode": "push",
+            "decoupled": true,
+            "on": 1,
+            "off": 0,
+            "address": "/key",
+            "alphaFillOn": 1,
+            "alphaFillOff": 0.1,
+            "colorWidget": "auto",
+            "width": 38,
+            "height": 38,
+            "id": "k_65",
+            "preArgs": [
+              65
+            ],
+            "label": "PAN",
+            "target": "127.0.0.1:8000"
+          },
+          {
+            "type": "button",
+            "mode": "push",
+            "decoupled": true,
+            "on": 1,
+            "off": 0,
+            "address": "/key",
+            "alphaFillOn": 1,
+            "alphaFillOff": 0.1,
+            "colorWidget": "auto",
+            "width": 38,
+            "height": 38,
+            "id": "k_76",
+            "preArgs": [
+              76
+            ],
+            "label": "MOD",
+            "target": "127.0.0.1:8000"
+          },
+          {
+            "type": "button",
+            "mode": "push",
+            "decoupled": true,
+            "on": 1,
+            "off": 0,
+            "address": "/key",
+            "alphaFillOn": 1,
+            "alphaFillOff": 0.1,
+            "colorWidget": "auto",
+            "width": 38,
+            "height": 38,
+            "id": "k_87",
+            "preArgs": [
+              87
+            ],
+            "label": "EXP",
+            "target": "127.0.0.1:8000"
+          },
+          {
+            "type": "button",
+            "mode": "push",
+            "decoupled": true,
+            "on": 1,
+            "off": 0,
+            "address": "/key",
+            "alphaFillOn": 1,
+            "alphaFillOff": 0.1,
+            "colorWidget": "auto",
+            "width": 38,
+            "height": 38,
+            "id": "k_98",
+            "preArgs": [
+              98
+            ],
+            "label": "U0",
+            "target": "127.0.0.1:8000"
+          },
+          {
+            "type": "button",
+            "mode": "push",
+            "decoupled": true,
+            "on": 1,
+            "off": 0,
+            "address": "/key",
+            "alphaFillOn": 1,
+            "alphaFillOff": 0.1,
+            "colorWidget": "auto",
+            "width": 38,
+            "height": 38,
+            "id": "k_109",
+            "preArgs": [
+              109
+            ],
+            "label": "U1",
+            "target": "127.0.0.1:8000"
+          },
+          {
+            "type": "button",
+            "mode": "push",
+            "decoupled": true,
+            "on": 1,
+            "off": 0,
+            "address": "/key",
+            "alphaFillOn": 1,
+            "alphaFillOff": 0.1,
+            "colorWidget": "auto",
+            "width": 38,
+            "height": 38,
+            "id": "k_120",
+            "preArgs": [
+              120
+            ],
+            "label": "U2",
+            "target": "127.0.0.1:8000"
+          },
+          {
+            "type": "button",
+            "mode": "push",
+            "decoupled": true,
+            "on": 1,
+            "off": 0,
+            "address": "/key",
+            "alphaFillOn": 1,
+            "alphaFillOff": 0.1,
+            "colorWidget": "auto",
+            "width": 38,
+            "height": 38,
+            "id": "k_131",
+            "preArgs": [
+              131
+            ],
+            "label": "U3",
+            "target": "127.0.0.1:8000"
+          },
+          {
+            "type": "button",
+            "mode": "push",
+            "decoupled": true,
+            "on": 1,
+            "off": 0,
+            "address": "/key",
+            "alphaFillOn": 1,
+            "alphaFillOff": 0.1,
+            "colorWidget": "auto",
+            "width": 38,
+            "height": 38,
+            "id": "k_142",
+            "preArgs": [
+              142
+            ],
+            "label": "U4",
+            "target": "127.0.0.1:8000"
+          },
+          {
+            "type": "button",
+            "mode": "push",
+            "decoupled": true,
+            "on": 1,
+            "off": 0,
+            "address": "/key",
+            "alphaFillOn": 1,
+            "alphaFillOff": 0.1,
+            "colorWidget": "auto",
+            "width": 38,
+            "height": 38,
+            "id": "k_153",
+            "preArgs": [
+              153
+            ],
+            "label": "U5",
+            "target": "127.0.0.1:8000"
+          },
+          {
+            "type": "button",
+            "mode": "push",
+            "decoupled": true,
+            "on": 1,
+            "off": 0,
+            "address": "/key",
+            "alphaFillOn": 1,
+            "alphaFillOff": 0.1,
+            "colorWidget": "auto",
+            "width": 38,
+            "height": 38,
+            "id": "k_164",
+            "preArgs": [
+              164
+            ],
+            "label": "MUT",
+            "target": "127.0.0.1:8000"
+          },
+          {
+            "type": "button",
+            "mode": "push",
+            "decoupled": true,
+            "on": 1,
+            "off": 0,
+            "address": "/key",
+            "alphaFillOn": 1,
+            "alphaFillOff": 0.1,
+            "colorWidget": "auto",
+            "width": 38,
+            "height": 38,
+            "id": "k_175",
+            "preArgs": [
+              175
+            ],
+            "label": "EDT",
+            "target": "127.0.0.1:8000"
+          },
+          {
+            "type": "button",
+            "mode": "push",
+            "decoupled": true,
+            "on": 1,
+            "off": 0,
+            "address": "/key",
+            "alphaFillOn": 1,
+            "alphaFillOff": 0.1,
+            "colorWidget": "auto",
+            "width": 38,
+            "height": 38,
+            "id": "k_186",
+            "preArgs": [
+              186
+            ],
+            "label": "ESC",
+            "target": "127.0.0.1:8000"
+          }
+        ],
+        "height": 44
+      }
+    ]
+  }
+}

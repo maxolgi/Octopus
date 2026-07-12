@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Octopus</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#1a1a1a;display:flex;flex-direction:column;align-items:center;padding:10px;font-family:monospace;user-select:none;overflow-x:hidden}
+
+.panel{--lbl:#777;background:#F8F6F0;border-radius:12px;padding:16px;box-shadow:0 4px 20px rgba(0,0,0,.5);display:flex;flex-direction:column;gap:8px;border:3px solid #2a2a2a}
+.top-sec{display:flex;gap:8px}
+
+/* Layout */
+.grid-row{display:flex;gap:2px;align-items:center}
+.left-sec{display:flex;flex-direction:column;gap:17px;padding-top:24px}
+.circle{position:relative;width:540px;height:500px;flex-shrink:0;align-self:flex-start}
+.right-sec{display:flex;gap:6px;align-items:flex-start}
+
+/* Spacers */
+.spacer-20{width:20px}.spacer-34{width:34px}.spacer-36{width:36px}.spacer-140{width:140px}
+
+/* Mix strip */
+.mix-row{display:flex;gap:2px;align-items:flex-end;padding:4px 0 3px 0}
+
+/* Track number */
+.tnum{display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--lbl);width:14px;flex-shrink:0;margin-top:8px;height:22px;margin-right:-20px}
+
+/* Button cell (LED above button) */
+.bcell{display:flex;flex-direction:column;align-items:center;gap:1px}
+
+/* LED dot */
+.led{width:7px;height:7px;border-radius:50%;background:transparent;transition:background .05s,box-shadow .05s;pointer-events:none;flex-shrink:0}
+
+/* Silver button base */
+.sbtn{border-radius:50%;background:radial-gradient(circle at 35% 30%,#f0f0f0,#b8b8b8 70%,#a0a0a0);border:1px solid #888;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:inset 0 1px 2px rgba(255,255,255,.6),0 1px 1px rgba(0,0,0,.2);color:#444}
+.sbtn:active{transform:scale(.92)}
+.sbtn.held,.rbtn.held,.zm-btn.held,.mxp.held,.big-knob.held{transform:scale(.92)}
+
+/* Attribute button + label + LED */
+.attr-wrap{position:relative;height:30px;width:22px}
+.attr-btn{width:22px;height:22px;flex-shrink:0;margin-top:8px}
+.attr-led{position:absolute;left:25px;top:19px;transform:translateY(-50%)}
+.attr-lbl{font-size:8px;color:var(--lbl);white-space:nowrap;position:absolute;right:25px;top:19px;transform:translateY(-50%)}
+
+/* Mutator button + label + LED */
+.mut-wrap{position:relative;height:30px;width:22px}
+.mut-btn{width:22px;height:22px;flex-shrink:0;margin-top:8px}
+.mut-led{position:absolute;right:25px;top:19px;transform:translateY(-50%)}
+.mut-lbl{font-size:8px;color:var(--lbl);white-space:nowrap;position:absolute;left:25px;top:19px;transform:translateY(-50%)}
+
+/* Step pad */
+.pad-btn{width:22px;height:22px;touch-action:none}
+
+/* Rotary */
+.rot-entry{display:flex;flex-direction:column;align-items:center;gap:1px;padding-top:8px;width:45px}
+.rot-entry-right{position:relative}
+.rot-pair{display:flex;gap:1px}
+.rb{width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#f0f0f0,#b8b8b8 70%,#a0a0a0);border:1px solid #888;cursor:pointer;font-size:8px;color:#333;display:flex;align-items:center;justify-content:center;box-shadow:inset 0 1px 2px rgba(255,255,255,.6),0 1px 1px rgba(0,0,0,.2)}
+.rb:active{background:linear-gradient(to bottom,#b0b0b0,#909090)}
+.rot-lbl-right{font-size:8px;color:var(--lbl);white-space:nowrap;position:absolute;left:35px;top:19px;transform:translateY(-50%)}
+
+/* Hex encoder knob */
+.knob{width:22px;height:22px;position:relative;cursor:ns-resize;flex-shrink:0}
+.knob:active{cursor:grabbing}
+.knob-cap{position:absolute;inset:-3px;clip-path:polygon(50% 0%,93% 25%,93% 75%,50% 100%,7% 75%,7% 25%);background:linear-gradient(150deg,#ececec,#c4c4c4 40%,#a8a8a8 55%,#c0c0c0 75%,#d8d8d8);filter:drop-shadow(0 1px 1px rgba(0,0,0,.4));transition:transform .06s linear}
+.knob-indicator{display:none}
+
+/* Mix strip */
+.mmix{display:flex;flex-direction:column;align-items:center;gap:1px}
+.mmix-wide{width:45px;flex-shrink:0}
+.empty-cell{width:22px;flex-shrink:0}
+.mmix .rbtn{width:22px;height:22px}
+.mmix .rlbl{font-size:8px;color:var(--lbl);line-height:1}
+
+/* Panel labels */
+.plbl{position:absolute;font-size:8px;color:var(--lbl);letter-spacing:1px;text-transform:uppercase;pointer-events:none;z-index:0}
+
+/* Ring buttons */
+.rbtn-wrap{position:absolute;display:flex;flex-direction:column;align-items:center;gap:1px;z-index:1}
+.rbtn{width:24px;height:24px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#f0f0f0,#b8b8b8 70%,#a0a0a0);border:1px solid #888;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:inset 0 1px 2px rgba(255,255,255,.6),0 1px 1px rgba(0,0,0,.2)}
+.rbtn:active{transform:scale(.92)}
+.rlbl{font-size:8px;color:var(--lbl);line-height:1}
+
+/* Zoom cluster */
+.zm-wrap{position:absolute;display:flex;flex-direction:column;align-items:center;gap:1px}
+.zm-btn{width:38px;height:34px;border-radius:4px;background:radial-gradient(ellipse at 35% 30%,#e8e8e8,#c0c0c0 70%,#a8a8a8);border:1px solid #888;cursor:pointer;font-size:8px;color:#444;display:flex;align-items:center;justify-content:center;font-weight:bold;box-shadow:inset 0 1px 2px rgba(255,255,255,.6),0 1px 1px rgba(0,0,0,.2)}
+.zm-btn:active{transform:scale(.93)}
+
+/* Big knob */
+.bk-wrap{position:absolute;display:flex;flex-direction:column;align-items:center;gap:1px}
+.big-knob{width:54px;height:54px;border-radius:50%;background:radial-gradient(circle at 38% 32%,#f0f0f0,#b0b0b0 60%,#909090);border:2px solid #777;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:8px;color:#555;font-weight:bold;box-shadow:inset 0 2px 4px rgba(255,255,255,.5),0 2px 3px rgba(0,0,0,.25)}
+
+/* Context menu */
+.ctx-menu{position:fixed;background:#222;border:1px solid #555;border-radius:4px;padding:6px 10px;z-index:9999;font-size:10px;color:#ccc;font-family:monospace;display:none}
+.ctx-item{padding:3px 0}
+.ctx-item label{cursor:pointer}
+.ctx-item input{vertical-align:middle}
+.ctx-item input[type=color]{width:24px;height:16px;border:1px solid #555;background:none;cursor:pointer;padding:0;border-radius:2px}
+.status{font-size:10px;color:#999}.st-on{color:#0a0}
+</style>
+</head>
+<body>
+<div id="ctxMenu" class="ctx-menu">
+  <div class="ctx-item"><span class="status" id="status">Connecting...</span></div>
+  <div class="ctx-item"><label><input type="checkbox" id="tipToggle"> Tooltips</label></div>
+  <div class="ctx-item"><label>Panel <input type="color" id="bgColorPicker" value="#f8f6f0"></label></div>
+</div>
+
+<div class="panel" id="panel">
+  <div id="topSec" class="top-sec">
+    <div id="leftSec" class="left-sec"></div>
+    <div class="circle" id="circle"></div>
+  </div>
+</div>
+
+<script>
+let ws=null;
+const mkey=(r,c)=>11+c*11+r;
+
+function setTip(el,text){el.dataset.tip=text;}
+function applyTips(){const e=document.getElementById('tipToggle').checked;document.querySelectorAll('[data-tip]').forEach(el=>{el.title=e?el.dataset.tip:'';});}
+document.addEventListener('DOMContentLoaded',()=>{document.getElementById('tipToggle').addEventListener('change',applyTips);applyTips();});
+
+const ctxMenu=document.getElementById('ctxMenu');
+document.addEventListener('contextmenu',function(e){
+  if(e.target.closest('.sbtn,.rbtn,.knob,.rb,.zm-btn,.bcell'))return;
+  e.preventDefault();
+  ctxMenu.style.display='block';
+  ctxMenu.style.left=Math.min(e.clientX,window.innerWidth-120)+'px';
+  ctxMenu.style.top=Math.min(e.clientY,window.innerHeight-60)+'px';
+});
+document.addEventListener('click',function(e){if(!ctxMenu.contains(e.target))ctxMenu.style.display='none';});
+
+function applyPanelBg(c){const p=document.getElementById('panel');p.style.background=c;const r=parseInt(c.slice(1,3),16),g=parseInt(c.slice(3,5),16),b=parseInt(c.slice(5,7),16);p.style.setProperty('--lbl',(0.299*r+0.587*g+0.114*b)/255<0.5?'#ccc':'#777');}
+(function(){const s=localStorage.getItem('panelBg');if(s){applyPanelBg(s);document.getElementById('bgColorPicker').value=s;}})();
+document.getElementById('bgColorPicker').addEventListener('input',function(e){applyPanelBg(e.target.value);localStorage.setItem('panelBg',e.target.value);});
+
+const keyNames={MIX:21,SEL:32,ATR:43,VOL:54,PAN:65,MOD:76,EXP:87,U0:98,U1:109,U2:120,U3:131,U4:142,U5:153,MUT:164,EDT:175,ESC:186,TGGL:187,SOLO:188,CLR:189,RND:190,FLT:191,RMX:192,EFF:193,ZOOM:194,CPY:195,PST:196,VEL:1,PIT:2,LEN:3,STR:4,POS:5,DIR:6,AMT:7,GRV:8,MCC:9,MCH:10,BK1:201,BK2:200,BK3:199,BK4:198,BK5:197,BK6:207,BK7:206,BK8:216,BK9:215,BK100:224,BK200:233,CH1:205,CH2:204,CH3:203,CH4:202,CHN:213,FLW:214,MY:243,PEN:244,WHL:245,MAJ:246,MIN:247,DIM:248,CHR:249,SSEL:222,SMOD:221,CAD:230,PGM:242,TPO:234,REC:223,STP:231,PSE:232,P1:241,P2:240,P4:250,GRID:218,PAGE:219,TRK:220,STEP:227,MAP:228,PLAY:229,C:212,'C#':211,D:210,'D#':209,E:208,F:217,'F#':225,G:226,'G#':235,A:236,'A#':237,B:238,CUP:239,ALN:251,CHORD0:258,CHORD1:257,CHORD2:256,CHORD3:255,CHORD4:254,CHORD5:253,CHORD6:252};
+const rotNames={TPO:0,VEL:1,PIT:2,LEN:3,STA:4,POS:5,DIR:6,AMT:7,GRV:8,MCC:9,MCH:10,R0:20,R1:19,R2:18,R3:17,R4:16,R5:15,R6:14,R7:13,R8:12,R9:11};
+const keyIndexToName={};for(const[n,k]of Object.entries(keyNames))keyIndexToName[k]=n;
+const rotIndexToName={};for(const[n,k]of Object.entries(rotNames))rotIndexToName[k]=n;
+function keyTip(label,key){const n=keyIndexToName[key];return n?`${label} - /key/${key} - /key/${n.toLowerCase()}`:`${label} - /key/${key}`;}
+function rotTip(label,rot){const n=rotIndexToName[rot];return n?`${label} - /rotary/${rot} - /rotary/${n.toLowerCase()}`:`${label} - /rotary/${rot}`;}
+
+function mkCell(btn){const led=document.createElement('div');led.className='led';const cell=document.createElement('div');cell.className='bcell';cell.appendChild(led);cell.appendChild(btn);return cell;}
+
+let knobDrag=null;
+function createKnob(idx){
+  const k=document.createElement('div');k.className='knob';
+  const cap=document.createElement('div');cap.className='knob-cap';
+  const ind=document.createElement('div');ind.className='knob-indicator';
+  cap.appendChild(ind);k.appendChild(cap);
+  let rot=0;
+  function tick(d){rrot(idx,d);rot+=d===2?20:-20;cap.style.transform='rotate('+rot+'deg)';}
+  k.addEventListener('wheel',function(e){e.preventDefault();tick(e.deltaY<0?2:1);},{passive:false});
+  k.addEventListener('mousedown',function(e){e.preventDefault();knobDrag={el:k,y:e.clientY,acc:0,t:tick};k.style.cursor='grabbing';});
+  return k;
+}
+document.addEventListener('mousemove',function(e){
+  if(!knobDrag)return;
+  var dy=knobDrag.y-e.clientY;
+  while(dy-knobDrag.acc>=10){knobDrag.acc+=10;knobDrag.t(2);}
+  while(dy-knobDrag.acc<=-10){knobDrag.acc-=10;knobDrag.t(1);}
+});
+document.addEventListener('mouseup',function(){if(knobDrag){knobDrag.el.style.cursor='';knobDrag=null;}});
+
+const attrLabels=['VEL','PIT','LEN','STR','POS','DIR','AMT','GRV','MCC','MCH'];
+const mutLabels=['TGGL','SOLO','CLR','RND','FLT','RMX','EFF','ZOOM','CPY','PST'];
+const ls=document.getElementById('leftSec');
+
+// === Matrix rows — elements flow into grid columns 1-21 ===
+for(let row=0;row<=9;row++){
+  const r=document.createElement('div');r.className='grid-row';
+  const rowIdx=row;
+
+  // Col 1: track number
+  r.appendChild(Object.assign(document.createElement('div'),{className:'tnum',textContent:row}));
+
+  // Col 2: left rotary
+  const lrid=20-row;
+  const lr=document.createElement('div');lr.className='rot-entry';
+  lr.appendChild(createKnob(lrid));
+  setTip(lr,rotTip('Track '+row+' MIX',20-row));
+  r.appendChild(Object.assign(document.createElement('div'),{className:'spacer-20'}));
+  r.appendChild(lr);
+
+  // Col 3: attribute button
+  r.appendChild(Object.assign(document.createElement('div'),{className:'spacer-20'}));
+  const attrKey=row+1;
+  const aw=document.createElement('div');aw.className='attr-wrap';
+  const aLbl=document.createElement('div');aLbl.className='attr-lbl';aLbl.textContent=attrLabels[rowIdx];
+  const aLed=document.createElement('div');aLed.className='led attr-led';
+  const abtn=document.createElement('div');abtn.className='sbtn attr-btn';abtn.id=`lbt-${attrKey}`;
+  setTip(abtn,keyTip(attrLabels[rowIdx]+' (Track '+row+')',attrKey));
+  aw.appendChild(aLbl);aw.appendChild(aLed);aw.appendChild(abtn);
+  r.appendChild(aw);
+
+  // Cols 4-19: 16 step pads
+  r.appendChild(Object.assign(document.createElement('div'),{className:'spacer-20'}));
+  for(let col=0;col<16;col++){
+    const p=document.createElement('div');p.className='sbtn pad-btn';p.id=`p${row}_${col}`;
+    setTip(p,keyTip('Step R'+row+' C'+col,mkey(row,col)));
+    r.appendChild(mkCell(p));
+  }
+
+  // Col 20: mutator button
+  r.appendChild(Object.assign(document.createElement('div'),{className:'spacer-20'}));
+  const mutKey=187+rowIdx;
+  const mw=document.createElement('div');mw.className='mut-wrap';
+  const mLbl=document.createElement('div');mLbl.className='mut-lbl';mLbl.textContent=mutLabels[rowIdx];
+  const mLed=document.createElement('div');mLed.className='led mut-led';
+  const mt=document.createElement('div');mt.className='sbtn mut-btn';mt.id=`rbt-${mutKey}`;
+  setTip(mt,keyTip(mutLabels[rowIdx],mutKey));
+  mw.appendChild(mLbl);mw.appendChild(mLed);mw.appendChild(mt);
+  r.appendChild(mw);
+
+  // Col 21: right rotary
+  r.appendChild(Object.assign(document.createElement('div'),{className:'spacer-20'}));
+  const rrid=rowIdx+1;
+  const rr=document.createElement('div');rr.className='rot-entry rot-entry-right';
+  rr.appendChild(createKnob(rrid));
+  const rrLbl=document.createElement('span');rrLbl.className='rot-lbl-right';rrLbl.textContent=attrLabels[rowIdx];
+  rr.appendChild(rrLbl);
+  setTip(rr,rotTip(attrLabels[rowIdx],rrid));
+  r.appendChild(rr);
+
+  ls.appendChild(r);
+}
+
+// === Mix strip — same grid, buttons placed by grid-column ===
+function mkMixBtn(key,label){
+  const wrap=document.createElement('div');wrap.className='mmix';
+  const led=document.createElement('div');led.className='led';
+  const btn=document.createElement('div');btn.className='rbtn';btn.id=`mx${key}`;
+  const lbl=document.createElement('div');lbl.className='rlbl';lbl.textContent=label;
+  wrap.appendChild(led);wrap.appendChild(btn);wrap.appendChild(lbl);
+  setTip(btn,keyTip(label,key));
+  return wrap;
+}
+
+const mixRow=document.createElement('div');mixRow.className='mix-row';
+// Mirror the matrix row structure exactly: same spacers, same element widths
+// tnum placeholder
+mixRow.appendChild(Object.assign(document.createElement('div'),{className:'tnum'}));
+// spacer
+mixRow.appendChild(Object.assign(document.createElement('div'),{className:'spacer-20'}));
+// MIX — in 45px container to match left rotary width
+const mixMIX=mkMixBtn(21,'MIX');mixMIX.classList.add('mmix-wide');
+mixRow.appendChild(mixMIX);
+// spacer
+mixRow.appendChild(Object.assign(document.createElement('div'),{className:'spacer-20'}));
+// SEL — 22px, matches attr-wrap
+mixRow.appendChild(mkMixBtn(32,'SEL'));
+// spacer
+mixRow.appendChild(Object.assign(document.createElement('div'),{className:'spacer-20'}));
+// 2 empty cells for pad cols 0-1
+for(let i=0;i<2;i++)mixRow.appendChild(Object.assign(document.createElement('div'),{className:'empty-cell'}));
+// ATR through U0 (6 buttons, align with pad cols 2-7)
+const mixMidA=[{k:43,l:'ATR'},{k:54,l:'VOL'},{k:65,l:'PAN'},{k:76,l:'MOD'},{k:87,l:'EXP'},{k:98,l:'U0'}];
+mixMidA.forEach(m=>mixRow.appendChild(mkMixBtn(m.k,m.l)));
+// 1 empty cell for pad col 8
+mixRow.appendChild(Object.assign(document.createElement('div'),{className:'empty-cell'}));
+// U1 through U5 (5 buttons, align with pad cols 9-13)
+const mixMidB=[{k:109,l:'U1'},{k:120,l:'U2'},{k:131,l:'U3'},{k:142,l:'U4'},{k:153,l:'U5'}];
+mixMidB.forEach(m=>mixRow.appendChild(mkMixBtn(m.k,m.l)));
+// 2 empty cells for pad cols 14-15
+for(let i=0;i<2;i++)mixRow.appendChild(Object.assign(document.createElement('div'),{className:'empty-cell'}));
+// spacer
+mixRow.appendChild(Object.assign(document.createElement('div'),{className:'spacer-20'}));
+// MUT — 22px, matches mut-wrap
+mixRow.appendChild(mkMixBtn(164,'MUT'));
+// spacer
+mixRow.appendChild(Object.assign(document.createElement('div'),{className:'spacer-20'}));
+// EDT — in 45px container to match right rotary button pair
+const mixEDT=mkMixBtn(175,'EDT');mixEDT.classList.add('mmix-wide');
+mixRow.appendChild(mixEDT);
+// spacer
+mixRow.appendChild(Object.assign(document.createElement('div'),{className:'spacer-20'}));
+// ESC — right of EDT
+mixRow.appendChild(mkMixBtn(186,'ESC'));
+// Spacer — adjusted by JavaScript to align chord 3 with STOP
+const chordSpacer=document.createElement('div');chordSpacer.id='chordSpacer';chordSpacer.style.width='0px';chordSpacer.style.flexShrink='0';
+mixRow.appendChild(chordSpacer);
+// 7 chord buttons (keys 252-258, labels 6-0), chord 3 (key 255) is center
+const chordDefs=[{k:258,l:'0'},{k:257,l:'1'},{k:256,l:'2'},{k:255,l:'3'},{k:254,l:'4'},{k:253,l:'5'},{k:252,l:'6'}];
+chordDefs.forEach(c=>{
+  const w=mkMixBtn(c.k,c.l);
+  w.querySelector('.rbtn').id=`chd-${c.k}`;
+  setTip(w.querySelector('.rbtn'),keyTip('Chord size '+c.l,c.k));
+  mixRow.appendChild(w);
+});
+document.getElementById('panel').appendChild(mixRow);
+
+// === CIRCLE ===
+const cl=document.getElementById('circle');
+const CX=270,CY=245,RO=210,RI=145;
+function cp(a,r){const d=(a-90)*Math.PI/180;return{x:Math.cos(d)*r+CX,y:Math.sin(d)*r+CY}}
+
+// Panel labels
+[{t:'MODE',x:CX-12,y:CY+2},{t:'SCALE',x:CX-14,y:CY+102},{t:'TRANSPORT',x:CX-26,y:CY+183}].forEach(l=>{
+  const e=document.createElement('div');e.className='plbl';e.textContent=l.t;
+  e.style.left=l.x+'px';e.style.top=l.y+'px';cl.appendChild(e);
+});
+
+function mkRBtn(key,label,a,r){
+  const p=cp(a,r);
+  const led=document.createElement('div');led.className='led';
+  const btn=document.createElement('div');btn.className='rbtn';btn.id=`ck-${key}`;
+  setTip(btn,keyTip(label,key));
+  const lbl=document.createElement('div');lbl.className='rlbl';lbl.textContent=label;
+  const wrap=document.createElement('div');wrap.className='rbtn-wrap';
+  wrap.style.left=(p.x-12)+'px';wrap.style.top=(p.y-12)+'px';
+  wrap.appendChild(led);wrap.appendChild(btn);wrap.appendChild(lbl);cl.appendChild(wrap);
+}
+
+const outerSlots=new Array(32).fill(null);
+[{k:201,l:'1'},{k:200,l:'2'},{k:199,l:'3'},{k:198,l:'4'},{k:197,l:'5'},
+ {k:207,l:'6'},{k:206,l:'7'},{k:216,l:'8'},{k:215,l:'9'},{k:224,l:'100'},{k:233,l:'200'}
+].forEach((b,i)=>{outerSlots[(24+i)%32]=b;});
+[{k:213,l:'CHN'},{k:214,l:'FLW'},
+ {k:243,l:'MY'},{k:244,l:'PEN'},{k:245,l:'WHL'},{k:246,l:'MAJ'},{k:242,l:'PGM'},{k:234,l:'TPO'},
+ {k:247,l:'MIN'},{k:248,l:'DIM'},
+ {k:250,l:'P4'},{k:241,l:'P1'},{k:232,l:'PSE'},{k:231,l:'STP'},{k:223,l:'REC'},{k:240,l:'P2'},
+ {k:249,l:'CHR'}
+].forEach((b,i)=>{outerSlots[3+i]=b;});
+outerSlots[20]={k:205,l:'CH1'};
+outerSlots[21]={k:204,l:'CH2'};
+outerSlots[22]={k:203,l:'CH3'};
+outerSlots[23]={k:202,l:'CH4'};
+
+const innerNotes=[
+  {k:212,l:'C'},{k:211,l:'C#'},{k:210,l:'D'},{k:209,l:'D#'},
+  {k:208,l:'E'},{k:217,l:'F'},{k:225,l:'F#'},
+  {k:226,l:'G'},{k:235,l:'G#'},{k:236,l:'A'},
+  {k:237,l:'A#'},{k:238,l:'B'},{k:239,l:'C↑'},
+  {k:221,l:'MOD'},{k:222,l:'SEL'},{k:230,l:'CAD'}
+];
+outerSlots.forEach((b,i)=>{if(b)mkRBtn(b.k,b.l,i*11.25,RO);});
+innerNotes.forEach((b,i)=>{mkRBtn(b.k,b.l,((i-6)*22.5+360)%360,RI);});
+
+[{k:218,l:'GRID',dx:-52,dy:-32},{k:219,l:'PAGE',dx:0,dy:-48},{k:220,l:'TRK',dx:52,dy:-32},
+ {k:227,l:'STEP',dx:-52,dy:32},{k:228,l:'MAP',dx:0,dy:48},{k:229,l:'PLAY',dx:52,dy:32}].forEach(z=>{
+  const wrap=document.createElement('div');wrap.className='rbtn-wrap';
+  wrap.style.left=(CX+z.dx-12)+'px';wrap.style.top=(CY+z.dy-12)+'px';
+  const led=document.createElement('div');led.className='led';
+  const e=document.createElement('div');e.className='rbtn';e.id=`ck-${z.k}`;
+  setTip(e,keyTip(z.l+' zoom',z.k));
+  const lbl=document.createElement('div');lbl.className='rlbl';lbl.textContent=z.l;
+  wrap.appendChild(led);wrap.appendChild(e);wrap.appendChild(lbl);cl.appendChild(wrap);
+});
+
+// TPO rotary (+/-) and ALN button in top right section of circle
+const tpoWrap=document.createElement('div');tpoWrap.className='rbtn-wrap';
+tpoWrap.style.left='480px';tpoWrap.style.top='20px';
+const tpoLed=document.createElement('div');tpoLed.className='led';
+const tpoRot=createKnob(0);
+setTip(tpoRot,rotTip('Tempo',0));
+const tpoLbl=document.createElement('div');tpoLbl.className='rlbl';tpoLbl.textContent='TPO';
+tpoWrap.appendChild(tpoLed);tpoWrap.appendChild(tpoRot);tpoWrap.appendChild(tpoLbl);
+cl.appendChild(tpoWrap);
+
+const alnWrap=document.createElement('div');alnWrap.className='rbtn-wrap';
+alnWrap.style.left='490px';alnWrap.style.top='85px';
+const alnLed=document.createElement('div');alnLed.className='led';
+const alnBtn=document.createElement('div');alnBtn.className='rbtn';alnBtn.id='ck-251';
+setTip(alnBtn,keyTip('Align',251));
+const alnLbl=document.createElement('div');alnLbl.className='rlbl';alnLbl.textContent='ALN';
+alnWrap.appendChild(alnLed);alnWrap.appendChild(alnBtn);alnWrap.appendChild(alnLbl);
+cl.appendChild(alnWrap);
+
+// === Rebind all buttons with Ctrl+click hold ===
+document.querySelectorAll('[id^="p"]').forEach(el=>{const m=el.id.match(/^p(\d+)_(\d+)$/);if(m)bindStepPad(el,mkey(+m[1],+m[2]));});
+document.querySelectorAll('[id^="lbt-"]').forEach(el=>bindKey(el,parseInt(el.id.slice(4))));
+document.querySelectorAll('[id^="rbt-"]').forEach(el=>bindKey(el,parseInt(el.id.slice(4))));
+document.querySelectorAll('[id^="ck-"]').forEach(el=>{
+  const key=parseInt(el.id.slice(3));
+  const zl={218:'GRID',219:'PAGE',220:'TRK',227:'STEP',228:'MAP',229:'PLAY'};
+  if(zl[key])bindKey(el,key);
+  else bindKey(el,key);
+});
+document.querySelectorAll('[id^="mx"]').forEach(el=>{
+  const key=parseInt(el.id.slice(2));
+  if(key===186)bindKey(el,key);
+  else bindKey(el,key);
+});
+document.querySelectorAll('[id^="chd-"]').forEach(el=>bindKey(el,parseInt(el.id.slice(4))));
+
+// === Responsive scaling ===
+function fitToWidth(){
+  const panel=document.getElementById('panel');
+  const natural=panel.offsetWidth;
+  if(!natural)return;
+  const avail=window.innerWidth-20;
+  const scale=avail/natural;
+  panel.style.transform=`scale(${scale})`;
+  panel.style.transformOrigin='top center';
+  panel.style.marginBottom=(panel.offsetHeight*(scale-1))+'px';
+}
+window.addEventListener('resize',()=>{fitToWidth();alignChordButtons();});
+fitToWidth();
+function alignChordButtons(){
+  const panel=document.getElementById('panel');
+  const scale=parseFloat(panel.style.transform.match(/scale\(([\d.]+)\)/)?.[1]||1);
+  const stopBtn=document.getElementById('ck-231');
+  const escBtn=document.getElementById('mx186');
+  const spacer=document.getElementById('chordSpacer');
+  if(!stopBtn||!escBtn||!spacer)return;
+  const mixRect=mixRow.getBoundingClientRect();
+  const stopCenter=(stopBtn.getBoundingClientRect().left+stopBtn.getBoundingClientRect().width/2-mixRect.left)/scale;
+  const escRight=(escBtn.getBoundingClientRect().right-mixRect.left)/scale;
+  spacer.style.width=Math.max(0,stopCenter-83-escRight)+'px';
+}
+alignChordButtons();
+
+// === WebSocket ===
+function connect(){
+  ws=new WebSocket(`ws://${location.hostname}:8081`);
+  ws.onopen=()=>{document.getElementById('status').textContent='● Connected';document.getElementById('status').className='status st-on';};
+  ws.onclose=()=>{document.getElementById('status').textContent='○ Reconnecting';document.getElementById('status').className='status';setTimeout(connect,1000);};
+  ws.onmessage=(e)=>{const m=JSON.parse(e.data);handle(m.address,m.args);};
+}
+connect();
+function send(m){if(ws&&ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify(m));}
+function skey(i,p){send({type:'key',index:i,press:p});}
+function srot(i,d){send({type:'rotary',index:i,direction:d});}
+function rrot(i,d){send({type:'rotary',index:i,direction:d});}
+function skeyName(n,p){send({type:'key',index:keyNames[n],press:p});}
+function srotName(n,d){send({type:'rotary',index:rotNames[n],direction:d});}
+
+// === Ctrl-click hold ===
+const heldKeys=new Map();
+function bindKey(el,key,extraDown){
+  if(!el)return;
+  el.oncontextmenu=(e)=>{e.preventDefault();return false;};
+  el.onmousedown=(e)=>{
+    if(e.ctrlKey||e.metaKey||e.button===2){
+      e.preventDefault();
+      if(heldKeys.has(key)){skey(key,false);el.classList.remove('held');heldKeys.delete(key);}
+      else{skey(key,true);el.classList.add('held');heldKeys.set(key,el);}
+      return;
+    }
+    skey(key,true);
+    if(extraDown)extraDown();
+  };
+  el.onmouseup=()=>{
+    if(heldKeys.has(key))return;
+    skey(key,false);
+    heldKeys.forEach((heldEl,k)=>{skey(k,false);heldEl.classList.remove('held');});
+    heldKeys.clear();
+  };
+}
+
+// === Drag-paint step pads ===
+let dragPaint=null;
+function bindStepPad(el,key){
+  if(!el)return;
+  el.oncontextmenu=(e)=>{e.preventDefault();return false;};
+  el.onmousedown=(e)=>{
+    if(e.ctrlKey||e.metaKey||e.button===2){
+      e.preventDefault();
+      if(heldKeys.has(key)){skey(key,false);el.classList.remove('held');heldKeys.delete(key);}
+      else{skey(key,true);el.classList.add('held');heldKeys.set(key,el);}
+      return;
+    }
+    e.preventDefault();
+    dragPaint={visited:new Set()};
+    skey(key,true);skey(key,false);
+    dragPaint.visited.add(el.id);
+  };
+  el.addEventListener('mouseenter',()=>{
+    if(!dragPaint||dragPaint.visited.has(el.id))return;
+    skey(key,true);skey(key,false);
+    dragPaint.visited.add(el.id);
+  });
+  el.onmouseup=()=>{
+    if(heldKeys.has(key))return;
+    dragPaint=null;
+    heldKeys.forEach((heldEl,k)=>{skey(k,false);heldEl.classList.remove('held');});
+    heldKeys.clear();
+  };
+  el.addEventListener('touchstart',(e)=>{
+    e.preventDefault();
+    dragPaint={visited:new Set()};
+    skey(key,true);skey(key,false);
+    dragPaint.visited.add(el.id);
+  },{passive:false});
+  el.addEventListener('touchmove',(e)=>{
+    if(!dragPaint)return;
+    e.preventDefault();
+    const t=e.touches[0];
+    const tgt=document.elementFromPoint(t.clientX,t.clientY);
+    const pad=tgt?tgt.closest('.pad-btn'):null;
+    if(pad&&pad.id.match(/^p\d+_\d+$/)&&!dragPaint.visited.has(pad.id)){
+      const m=pad.id.match(/^p(\d+)_(\d+)$/);
+      const pk=mkey(+m[1],+m[2]);
+      skey(pk,true);skey(pk,false);
+      dragPaint.visited.add(pad.id);
+    }
+  },{passive:false});
+}
+document.addEventListener('mouseup',()=>{dragPaint=null;});
+document.addEventListener('touchend',()=>{dragPaint=null;});
+document.addEventListener('touchcancel',()=>{dragPaint=null;});
+
+// === MIR decode ===
+let mirData=new Uint8Array(170);
+function handle(addr,args){
+  if(addr==='/mir'){const h=args[0];for(let i=0;i<170;i++)mirData[i]=parseInt(h.substr(i*2,2),16);upd();}
+}
+function mb(s,r,c){return mirData[s*85+r*5+c];}
+function ml(s,r,b){return((mb(s,r,1)>>b&1)?2:0)|((mb(s,r,2)>>b&1)?4:0);}
+function setL(el,v){
+  if(!el)return;const led=el.previousElementSibling||(el.parentElement&&el.parentElement.querySelector('.led'))||el;
+  const r=v&2,g=v&4;
+  if(r&&g){led.style.background='#dc0';led.style.boxShadow='0 0 5px #e80';}
+  else if(r){led.style.background='#d00';led.style.boxShadow='0 0 5px #f00';}
+  else if(g){led.style.background='#0c0';led.style.boxShadow='0 0 5px #0f0';}
+  else{led.style.background='transparent';led.style.boxShadow='none';}
+}
+function upd(){
+  for(let row=0;row<10;row++)for(let col=0;col<8;col++){
+    setL(document.getElementById(`p${row}_${col}`),ml(0,row,col));
+    setL(document.getElementById(`p${row}_${col+8}`),ml(1,row,col));}
+  const mk=[21,32,43,54,65,76,87,98,109,120,131,142,153,164,175,186];
+  const mm=[[0,10,0],[0,10,1],[0,10,2],[0,10,3],[0,10,4],[0,10,5],[0,10,6],[0,10,7],[1,10,0],[1,10,1],[1,10,2],[1,10,3],[1,10,4],[1,10,5],[1,10,6],[1,10,7]];
+  mk.forEach((k,i)=>setL(document.getElementById(`mx${k}`),ml(mm[i][0],mm[i][1],mm[i][2])));
+  const cm={225:[0,15,0],217:[0,15,1],208:[0,15,2],209:[0,15,3],210:[0,15,4],211:[0,15,5],212:[0,15,6],221:[0,15,7],222:[1,15,0],230:[1,15,1],239:[1,15,2],238:[1,15,3],237:[1,15,4],236:[1,15,5],235:[1,15,6],226:[1,15,7],218:[0,16,0],219:[0,16,1],227:[0,16,2],228:[0,16,3],220:[0,16,4],229:[0,16,5],231:[1,14,0],232:[1,14,1],241:[1,14,2],240:[1,14,3],250:[1,14,4],249:[1,14,5],248:[1,14,6],247:[1,14,7],201:[0,14,0],205:[0,14,4],204:[0,14,3],203:[0,14,2],202:[0,14,1],213:[0,14,5],214:[0,14,6],223:[0,14,7],215:[0,13,0],216:[0,13,1],206:[0,13,2],207:[0,13,3],197:[0,13,4],198:[0,13,5],199:[0,13,6],200:[0,13,7],246:[1,13,0],245:[1,13,1],244:[1,13,2],243:[1,13,3],242:[1,13,4],234:[1,13,5],233:[1,13,6],224:[1,13,7],251:[1,16,7],252:[1,16,6],253:[1,16,5],254:[1,16,4],255:[1,16,3],256:[1,16,2],257:[1,16,1],258:[1,16,0]};
+  for(const[k,p]of Object.entries(cm)){
+    setL(document.getElementById(`ck-${k}`),ml(p[0],p[1],p[2]));
+    setL(document.getElementById(`chd-${k}`),ml(p[0],p[1],p[2]));
+  }
+  for(let i=0;i<5;i++){
+    setL(document.getElementById(`lbt-${i+1}`),ml(0,11,4-i));
+    setL(document.getElementById(`lbt-${i+6}`),ml(0,12,5-i));
+    setL(document.getElementById(`rbt-${187+i}`),ml(1,11,i+1));
+    setL(document.getElementById(`rbt-${192+i}`),ml(1,12,i));
+  }
+}
+</script>
+</body>
+</html>

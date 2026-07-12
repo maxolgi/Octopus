@@ -1,0 +1,15 @@
+--- a/OCT_OS/_OCT_init/Init_memory.h
++++ b/OCT_OS/_OCT_init/Init_memory.h
+@@ -634,8 +634,10 @@
+ 	// Initialize the page Tracks
+ 	for ( row=0; row < MATRIX_NROF_ROWS; row++ ){
+ 
+-		// Make the default pitch assignment
+-		target_page->Track[row]->attr_PIT = TRACK_DEFAULT_PITCH[row];
++		// Make the default pitch assignment (only if Track pointer is valid)
++		if ( target_page->Track[row] != NULL ){
++			target_page->Track[row]->attr_PIT = TRACK_DEFAULT_PITCH[row];
++		}
+ 	}
+ 
+ 	// Init the step selection pattern
