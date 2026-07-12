@@ -104,6 +104,56 @@ aseqdump -p <octopus_client>:0
 aconnect <clock_source>:<port> <octopus_client>:2
 ```
 
+## Web GUI
+
+There are **three interchangeable web GUI bridges**, all serving the same HTML
+control surface (`web_gui.html` / `web_gui_nemo.html`) on the same ports
+(HTTP 8080, WebSocket 8081, OSC 8000/9000). Only one should be running at a
+time. They differ only in runtime dependencies and whether they also launch the
+engine:
+
+| Bridge | Language | Launches engine? | HTML files | Path |
+|---|---|---|---|---|
+| **Rust UI launcher** | Rust (egui) | Yes | Bundled in binary | [`ui/`](ui/README.md) |
+| **Rust standalone bridge** | Rust | No | Reads from disk | [`cli_ui/`](cli_ui/README.md) |
+| **Python bridge** | Python | No | Reads from disk | `web_gui.py` |
+
+### Rust UI launcher — `ui/` → `octopus_ui`
+
+Native desktop app with a MIDI device picker. Launches the engine automatically
+and embeds the HTML control surface (no external files needed). See
+[`ui/README.md`](ui/README.md).
+
+```bash
+cd ui && cargo build --release
+./ui/target/release/octopus_ui
+# Or headless:
+./ui/target/release/octopus_ui --nogui --variant octopus
+```
+
+### Rust standalone bridge — `cli_ui/` → `web_gui`
+
+Same WebSocket ↔ OSC bridge as `web_gui.py` but no Python dependency. The engine
+must be started separately. See [`cli_ui/README.md`](cli_ui/README.md).
+
+```bash
+./build/octopus &
+cd cli_ui && cargo build --release
+./cli_ui/target/release/web_gui
+```
+
+### Python bridge — `web_gui.py`
+
+```bash
+pip3 install websockets
+./build/octopus &
+python3 web_gui.py
+```
+
+The HTML control surface is the same for all three — changes to
+`web_gui.html` / `web_gui_nemo.html` apply everywhere. The Rust UI launcher
+requires a rebuild since it embeds them at compile time.
+
 ## Persistence
 
 State auto-saves on exit to `octopus_state.bin` and auto-loads on startup.
