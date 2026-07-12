@@ -3,9 +3,13 @@
 Genoqs Octopus/Nemo MIDI sequencer firmware ported from eCos/ARM to Linux and Windows.
 C engine (ALSA/winmm MIDI, custom OSC over UDP), three interchangeable web GUI bridges serving the same HTML control surface (Python, Rust standalone, Rust UI launcher).
 
+This is the **cuttlefish-v6** branch. See the `main` branch for the standard CE firmware build.
+
 ## Firmware submodule
 
-The original firmware source lives in a git submodule at `firmware/` pointing to a fork of [genoqs-community/source](https://github.com/genoqs-community/source). It contains `OCT_OS/` (Octopus firmware) and `NEMO_OS/` (Nemo firmware). Five files are patched with `#ifdef __linux__` / `#ifdef _WIN32` guards via `patches/` (applied to the fork).
+The original firmware source lives in a git submodule at `firmware/` pointing to a fork of [genoqs-community/source](https://github.com/genoqs-community/source). It contains `OCT_OS/` (Octopus firmware) and `NEMO_OS/` (Nemo firmware). Patches are stored in `patches/` and applied to the fork.
+
+This branch uses the `cuttlefish-v6` branch of the fork, based on upstream `octopus-cuttlefish-6.0.0` (SoloRec, MIDI slave, recording features). The `main` branch uses `master` (CE v0.0.5.30).
 
 **First-time clone:**
 ```bash
@@ -104,6 +108,18 @@ Key mappings: `cyg_thread_*` → pthread, `cyg_mbox_*` → pipe/ring-buffer, `cy
 13. `OCT_OS/_OCT_Player/play_functions.h`, `play_play.h` — minor whitespace
 
 When modifying firmware files, use `#ifdef __linux__` / `#ifdef _WIN32` / `#ifndef __linux__` guards, not unconditional edits. Generate patches with `diff -u` from the submodule root and store in `patches/`.
+
+**v6-specific patches (`patches/07`–`08`, cuttlefish-v6 branch only):**
+
+14. `OCT_OS/_OCT_Player/play_MIDI.h` — v6 variant of patch 04 (same logic, different context lines due to upstream whitespace)
+15. `OCT_OS/_OCT_Player/play__master.h` — NULL guard in `PLAYER_dispatch` (primary SoloRec crash fix), div-by-zero guard in `advance_page_locators`
+16. `OCT_OS/_OCT_objects/Solorec.h` — array overflow in `Solorec_init`, NULL guards in `clearRec` and `applyEffects`
+17. `OCT_OS/_OCT_exe_keys/key_SOLOREC.h` — NULL guard in page cluster selection
+18. `OCT_OS/_OCT_exe_keys/key_cluster_operation.h` — NULL guard in `stop_solo_rec`
+
+**v6 HAL shim fix (`src/hal_linux.c`, cuttlefish-v6 branch only):**
+
+`cyg_alarm_initialize()` computes relative delay as `trigger - cyg_current_time()` instead of treating the absolute trigger time as a relative delay. Without this fix, all alarm-based timers (double-click, quick-turn, edit timer, SoloRec effects) fire ~60x too late.
 
 ## OSC protocol
 

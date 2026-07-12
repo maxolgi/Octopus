@@ -1,7 +1,26 @@
-# Octopus/Nemo Linux Port
+# Octopus/Nemo Linux Port (Cuttlefish v6)
 
 A faithful port of the Genoqs Octopus and Nemo MIDI sequencer firmware to Linux,
 using ALSA for MIDI I/O and OSC for the control surface.
+
+This is the **cuttlefish-v6** branch, built on the [octopus-cuttlefish-6.0.0](https://github.com/genoqs-community/source/tree/octopus-cuttlefish-6.0.0)
+firmware. It adds SoloRec, MIDI slave clock, human record mode, Cut/Undo/Checkpoint,
+and transpose/strum fixes on top of the standard CE firmware.
+
+The `main` branch builds against the standard CE v0.0.5.30 firmware.
+
+## Branches
+
+| Branch | Firmware | Features |
+|---|---|---|
+| `main` | CE v0.0.5.30 (master) | Standard Octopus/Nemo |
+| `cuttlefish-v6` | octopus-cuttlefish-6.0.0 | SoloRec, MIDI slave, recording, Cut/Undo |
+
+Switch between them:
+```bash
+git checkout main              # or cuttlefish-v6
+git submodule update --init    # updates firmware to match
+```
 
 ## Quick Start
 
@@ -181,30 +200,27 @@ make clean
 
 ## Modifications to Original Firmware
 
-20 files modified in the `firmware/` submodule (all minimal, guarded by `#ifdef`). Split across two patch files:
+### Port patches — `patches/01`–`06` (shared with `main` branch)
 
-### Core port — `patches/01`–`05`
+Same 20 files as the `main` branch (see `main` branch README for full list). Patch 04 (`play_MIDI.h`) has a v6-specific variant in `patches/07` due to whitespace differences.
 
-- `includes-declarations.h` — swap eCos headers for `hal_linux.h`
-- `Init_memory.h` — NULL guard in `PAGE_init()` (ARM hardware masked this bug)
-- `cpu-load.c` — disable CPU load check on Linux/Windows (no hardware countdown timer)
-- `play_MIDI.h` — `#ifdef __linux__` routing `MIDI_send()` to ALSA
-- `show_hwdriver.h` — `#ifndef __linux__` suppressing hardware `VIEWER_show_MIR()`
+### v6 play_MIDI variant — `patches/07`
 
-### Nemo build + additional — `patches/06`
+- `play_MIDI.h` — v6-specific `#ifdef __linux__` guard (same logic, different context lines)
 
-- `defs_functions.h` — define `KEY/LED_RANDOMIZE` under `#ifdef NEMO`
-- `includes-definitions.h` — add Nemo helper functions under `#ifdef NEMO`
-- `OS_infrastructure.h` — wrap alarm creation in `#if !linux && !_WIN32`
-- `Intr_KEY_functions.h` — fix `memset(MIR, 0, 204)` → `sizeof(MIR)`
-- `Intr_TMR.h` — move MIDI clock to sequencer thread; add `g_tick_ns` precompute
-- `key_GRID.h`, `key_MAP.h`, `key_STEP.h` — wrap `KEY_RANDOMIZE` in `#ifndef NEMO`
-- `key_PAGE_sel_NONE.h` — wrap `KEY_MIXTGT_USR1–4` in `#ifndef NEMO` (fixes duplicate case values)
-- `key_PAGE_sel_NONE_BIRDSEYE.h`, `key_PAGE_sel_STEP.h`, `key_PAGE_sel_TRACK.h` — wrap `KEY_RANDOMIZE` in `#ifndef NEMO`
-- `Intr_KEY_GRID.h` — wrap `KEY_RANDOMIZE` in `#ifndef NEMO`
-- `play_functions.h`, `play_play.h` — minor whitespace
+### v6 SoloRec bug fixes — `patches/08`
 
-Patches are stored in `patches/`. See `scripts/setup-firmware.sh` for fork setup.
+7 NULL-guard and overflow fixes for SoloRec stability:
+- `play__master.h` — NULL guard in `PLAYER_dispatch` (primary crash fix), div-by-zero guard in `advance_page_locators`
+- `Solorec.h` — array overflow in `Solorec_init`, NULL guards in `clearRec` and `applyEffects`
+- `key_SOLOREC.h` — NULL guard in page cluster selection
+- `key_cluster_operation.h` — NULL guard in `stop_solo_rec`
+
+### HAL shim fix (main repo, not firmware)
+
+- `src/hal_linux.c` — alarm timing: compute relative delay as `trigger - cyg_current_time()` instead of `trigger * 10`. Without this, double-click, quick-turn, edit, and SoloRec effect timers fire ~60x too late.
+
+Patches are stored in `patches/`.
 
 ## License
 
