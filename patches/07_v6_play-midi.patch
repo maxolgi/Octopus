@@ -1,0 +1,17 @@
+diff --git OCT_OS/_OCT_Player/play_MIDI.h OCT_OS/_OCT_Player/play_MIDI.h
+index dd3c456..9dd4283 100755
+--- OCT_OS/_OCT_Player/play_MIDI.h
++++ OCT_OS/_OCT_Player/play_MIDI.h
+@@ -82,6 +82,12 @@ void MIDI_send( 	unsigned char type,
+ 					unsigned char val1, 
+ 					unsigned char val2 ){
+ 
++#if defined(__linux__) || defined(_WIN32)
++	/* Linux ALSA / Windows winmm port: bypass UART mailbox, send directly to MIDI backend */
++	midi_send_event(type, val0, val1, val2, G_MIDI_timestamp);
++	return;
++#endif
++
+ 	// Initialize to something other than 0, where it can't do damage
+ 	unsigned char i = 200;	
+ 	unsigned char j = 200;

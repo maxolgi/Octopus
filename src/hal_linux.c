@@ -419,13 +419,28 @@ void cyg_alarm_initialize(cyg_handle_t handle, cyg_tick_count_t trigger, cyg_tic
     cyg_tick_count_t trigger_ms = trigger * 10;
     cyg_tick_count_t interval_ms = interval * 10;
 
+    /* Compute relative delay. In eCos, trigger is ABSOLUTE time
+     * (callers pass cyg_current_time() + timeout). When interval==0
+     * (one-shot), we must compute trigger - now to get the actual delay.
+     * When interval>0 (repeating), interval is already a relative period. */
+    cyg_tick_count_t delay_ms;
+    if (interval > 0) {
+        delay_ms = interval_ms;
+    } else if (trigger > 0) {
+        cyg_tick_count_t now = cyg_current_time();
+        if (trigger > now) {
+            delay_ms = (trigger - now) * 10;
+        } else {
+            delay_ms = 1;
+        }
+    } else {
+        delay_ms = 0;
+    }
+
 #ifdef _WIN32
     if (!alarm->htimer) return;
 
-    /* Use interval for both first fire and repeat (matching Linux behavior) */
     LARGE_INTEGER due;
-    cyg_tick_count_t delay_ms = (interval > 0) ? interval_ms : trigger_ms;
-
     /* Negative value = relative time in 100ns units */
     due.QuadPart = -(LONGLONG)(delay_ms * 10000);
 
@@ -446,10 +461,7 @@ void cyg_alarm_initialize(cyg_handle_t handle, cyg_tick_count_t trigger, cyg_tic
         its.it_interval.tv_nsec = (interval_ms % 1000) * 1000000;
     }
 
-    /* First fire: if trigger is just current_time+N, use N as delay */
-    if (trigger > 0) {
-        /* Use the interval as the first delay if interval is set, else use trigger */
-        cyg_tick_count_t delay_ms = (interval > 0) ? interval_ms : trigger_ms;
+    if (delay_ms > 0) {
         its.it_value.tv_sec = delay_ms / 1000;
         its.it_value.tv_nsec = (delay_ms % 1000) * 1000000;
     }

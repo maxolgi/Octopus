@@ -1,0 +1,90 @@
+--- a/OCT_OS/_OCT_Player/play__master.h (pre-fix)
++++ b/OCT_OS/_OCT_Player/play__master.h (post-fix)
+@@ -102,7 +102,8 @@
+ 		case 1:
+ 			// Advance page locator: modulo operation acc. to page length
+ 
+-			target_page->locator = ( target_page->locator % target_page->attr_LEN ) + 1;
++			if ( target_page->attr_LEN > 0 )
++				target_page->locator = ( target_page->locator % target_page->attr_LEN ) + 1;
+ 
+ 			break;
+ 
+@@ -511,7 +512,8 @@
+ 		// Solo Recording - Skip pages that are not selected to play along
+ 		if ( G_zoom_level == zoomSOLOREC ){
+ 
+-			if (SOLO_page_play_along[i] == GRID_p_selection[i]->pageNdx || grid_row(SOLO_rec_page->pageNdx) == i ){
++			if ( SOLO_rec_page != NULL && GRID_p_selection[i] != NULL &&
++				(SOLO_page_play_along[i] == GRID_p_selection[i]->pageNdx || grid_row(SOLO_rec_page->pageNdx) == i ) ){
+ 
+ 				if ( SOLO_scale_chords_program == ON || GRID_CURSOR == SOLO_assistant_page->pageNdx /* Arp */ ){
+ 
+--- a/OCT_OS/_OCT_objects/Solorec.h (pre-fix)
++++ b/OCT_OS/_OCT_objects/Solorec.h (post-fix)
+@@ -172,8 +172,10 @@
+ 		undo_rec = &Rec_undo_repository[i];
+ 		target_rec->measure_count = 0;
+ 		undo_rec->measure_count = 0;
+-		SOLO_page_play_along[i] = NOP;
+-		SOLO_page_play_along_toggle[i] = NOP;
++		if (i < MATRIX_NROF_ROWS) {
++			SOLO_page_play_along[i] = NOP;
++			SOLO_page_play_along_toggle[i] = NOP;
++		}
+ 
+ 		for ( row=0; row<MATRIX_NROF_ROWS; row++ ){
+ 			target_rec->track_pitch[row] = TRACK_DEF_PITCH;
+@@ -355,13 +357,15 @@
+ 		SOLO_rec_track_preview = SOLOPAGE;
+ 	}
+ 
+-	Pagestruct* firstPage = &Page_repository[first_page_in_cluster(SOLO_rec_page->pageNdx)];
++	if (SOLO_rec_page != NULL) {
++		Pagestruct* firstPage = &Page_repository[first_page_in_cluster(SOLO_rec_page->pageNdx)];
+ 
+-	// back to the first page
+-	GRID_p_selection[ SOLO_rec_bank ] = firstPage;
+-	GRID_p_preselection[ SOLO_rec_bank ] = firstPage;
+-	GRID_p_clock_presel[ SOLO_rec_bank ] = firstPage;
+-	GRID_CURSOR = firstPage->pageNdx;
++		// back to the first page
++		GRID_p_selection[ SOLO_rec_bank ] = firstPage;
++		GRID_p_preselection[ SOLO_rec_bank ] = firstPage;
++		GRID_p_clock_presel[ SOLO_rec_bank ] = firstPage;
++		GRID_CURSOR = firstPage->pageNdx;
++	}
+ 
+ 	send_ALL_NOTES_OFF();
+ }
+@@ -1438,6 +1442,8 @@
+ 
+ void applyEffects(){
+ 
++	if (SOLO_rec_page == NULL) return;
++
+ 	Trackstruct* target_track;
+ 	Trackstruct* next_track;
+ 	Stepstruct* target_step = NULL;
+--- a/OCT_OS/_OCT_exe_keys/key_SOLOREC.h (pre-fix)
++++ b/OCT_OS/_OCT_exe_keys/key_SOLOREC.h (post-fix)
+@@ -786,7 +786,7 @@
+ 		// Activate a record page - set the measure count
+ 		if (
+ 			 ( selected_solo_rec_page( heldNdx, pressedNdx ) == ON ||
+-			   selected_page_cluster( heldNdx, SOLO_rec_page->pageNdx ) != NOP )){
++			   ( SOLO_rec_page != NULL && selected_page_cluster( heldNdx, SOLO_rec_page->pageNdx ) != NOP ) )){
+ 
+ 			/*
+ 			 * A page with a measure count has been selected on this press
+--- a/OCT_OS/_OCT_exe_keys/key_cluster_operation.h (pre-fix)
++++ b/OCT_OS/_OCT_exe_keys/key_cluster_operation.h (post-fix)
+@@ -474,7 +474,7 @@
+ 	SOLO_rec_CLOCKSTART_OTM			= OFF;
+ 	SOLO_rec_record_OTM				= OFF;
+ 
+-	if ( SOLO_scale_chords_program == ON ){
++	if ( SOLO_scale_chords_program == ON && SOLO_rec_page != NULL ){
+ 		SOLO_rec_measure_hold = OFF;
+ 		GRID_CURSOR = SOLO_rec_page->pageNdx;
+ 	}
