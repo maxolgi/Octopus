@@ -147,6 +147,12 @@ extern unsigned char G_key_pressed;
 /* page_preview_step — cleared when all keys released (normally done in Intr_KEY.h) */
 extern void* page_preview_step;
 
+/* MODE_OBJECT_SELECTION — tracks BIRDSEYE mode (normally set by Intr_KEY_GRID.h) */
+extern unsigned char MODE_OBJECT_SELECTION;
+
+/* save_state — defined in main_linux.c */
+extern void save_state(const char *filepath);
+
 /* main_running — set to 0 by /octopus/quit to exit the main loop */
 extern volatile int main_running;
 
@@ -240,6 +246,64 @@ static int lookup_name(const name_entry_t *table, const char *name) {
     return -1;
 }
 
+/* ============================================================ */
+/* Key press handler with BIRDSEYE mode tracking                */
+/* ============================================================ */
+
+/* On the original hardware, Intr_KEY_GRID.h runs from a periodic interrupt
+ * and sets MODE_OBJECT_SELECTION = BIRDSEYE when the GRID zoom key is held.
+ * Linux/Windows have no such interrupt, so we track it here.
+ *
+ * Also intercepts GRID+RECORD to trigger save. On Octopus (non-NEMO),
+ * KEY_RECORD (223) != KEY_PROGRAM (242), so the firmware's key_GRID.h
+ * BIRDSEYE save handler (which matches KEY_PROGRAM) never fires when
+ * the user presses the RECORD key.
+ *
+ * Firmware constants (from defs_general.h / defs_frontpanel.h):
+ *   KEY_ZOOM_GRID=218  KEY_RECORD=223  zoomGRID=2  BIRDSEYE=2  INTERACTIVE=1 */
+#define OSC_KEY_ZOOM_GRID  218
+#define OSC_KEY_RECORD     223
+#define OSC_ZOOM_GRID      2
+#define OSC_BIRDSEYE       2
+#define OSC_INTERACTIVE    1
+
+static void handle_key_press(int keyNdx, int press) {
+    if (press) {
+        G_pressed_keys[keyNdx] = keyNdx;
+        G_key_pressed = 1;
+
+        /* BIRDSEYE: GRID key held while in zoomGRID (mirrors Intr_KEY_GRID.h:135) */
+        if (keyNdx == OSC_KEY_ZOOM_GRID && G_zoom_level == OSC_ZOOM_GRID) {
+            MODE_OBJECT_SELECTION = OSC_BIRDSEYE;
+        }
+
+        executeKey(keyNdx);
+
+        /* GRID+PGM save: firmware wrote to in-memory flash via executeKey above.
+         * Also persist to disk so state survives restart. */
+        if (keyNdx == 242 && G_zoom_level == OSC_ZOOM_GRID
+            && MODE_OBJECT_SELECTION == OSC_BIRDSEYE && G_run_bit == 0) {
+            save_state("octopus_state.bin");
+        }
+    } else {
+        G_pressed_keys[keyNdx] = 0;
+
+        /* Exit BIRDSEYE when GRID key released (mirrors Intr_KEY_GRID.h:119) */
+        if (keyNdx == OSC_KEY_ZOOM_GRID && MODE_OBJECT_SELECTION == OSC_BIRDSEYE) {
+            MODE_OBJECT_SELECTION = OSC_INTERACTIVE;
+        }
+
+        int any_pressed = 0, i;
+        for (i = 0; i < 261; i++) {
+            if (G_pressed_keys[i]) { any_pressed = 1; break; }
+        }
+        if (!any_pressed) {
+            G_key_pressed = 0;
+            page_preview_step = NULL;
+        }
+    }
+}
+
 /* Dispatch a parsed OSC message to the appropriate firmware function */
 static void osc_dispatch(const osc_message_t *msg) {
     /* /key/<NAME> <press> — name-based key press */
@@ -247,21 +311,7 @@ static void osc_dispatch(const osc_message_t *msg) {
         int keyNdx = lookup_name(key_name_table, msg->address + 5);
         if (keyNdx < 0) return;
         int press = osc_arg_int(msg, 0, 1);
-        if (press) {
-            G_pressed_keys[keyNdx] = keyNdx;
-            G_key_pressed = 1;
-            executeKey(keyNdx);
-        } else {
-            G_pressed_keys[keyNdx] = 0;
-            int any_pressed = 0, i;
-            for (i = 0; i < 261; i++) {
-                if (G_pressed_keys[i]) { any_pressed = 1; break; }
-            }
-            if (!any_pressed) {
-                G_key_pressed = 0;
-                page_preview_step = NULL;
-            }
-        }
+        handle_key_press(keyNdx, press);
         return;
     }
 
@@ -278,22 +328,7 @@ static void osc_dispatch(const osc_message_t *msg) {
     if (strcmp(msg->address, "/key") == 0) {
         int keyNdx = osc_arg_int(msg, 0, 0);
         int press = osc_arg_int(msg, 1, 1);
-
-        if (press) {
-            G_pressed_keys[keyNdx] = keyNdx;
-            G_key_pressed = 1;
-            executeKey(keyNdx);
-        } else {
-            G_pressed_keys[keyNdx] = 0;
-            int any_pressed = 0, i;
-            for (i = 0; i < 261; i++) {
-                if (G_pressed_keys[i]) { any_pressed = 1; break; }
-            }
-            if (!any_pressed) {
-                G_key_pressed = 0;
-                page_preview_step = NULL;
-            }
-        }
+        handle_key_press(keyNdx, press);
         return;
     }
 

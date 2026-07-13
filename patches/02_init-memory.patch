@@ -13,3 +13,19 @@
  	}
  
  	// Init the step selection pattern
+@@ -799,7 +801,13 @@
+ void MIR_init() {
+ 	unsigned int side=0, ndx=0, color=0;
+ 
+ 	for (side=0; side<2; side++) {
+-		for (ndx=0; ndx < 18; ndx++) {
++		for (ndx=0; ndx <
++#ifdef __linux__
++		17
++#else
++		18
++#endif
++		; ndx++) {
+ 			for (color=0; color<3; color++) {
+ 				MIR[side][ndx][color] = 0;
+ 			}

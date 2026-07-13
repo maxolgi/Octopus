@@ -64,24 +64,31 @@ static unsigned char *hal_flash_xlate(void *firmware_ptr) {
     return hal_flash_base + offset;
 }
 
+/* Firmware declares 'unsigned int err' and passes &err as (void**)err_address.
+ * On ARM sizeof(void*)==sizeof(unsigned int)==4, but on x86_64 sizeof(void*)==8
+ * while sizeof(unsigned int)==4. Writing *err_addr = (void*)0 would overflow
+ * the 4-byte unsigned int by 4 bytes, smashing the stack. Write through as
+ * unsigned int to match the firmware's allocation. */
+#define HAL_ERR_CLEAR(err_addr) do { if (err_addr) *(unsigned int *)(err_addr) = 0; } while (0)
+
 int flash_read(void *src, void *dest, unsigned int len, void **err_addr) {
     unsigned char *s = hal_flash_xlate(src);
     memcpy(dest, s, len);
-    if (err_addr) *err_addr = (void *)0;
+    HAL_ERR_CLEAR(err_addr);
     return 0;
 }
 
 int flash_erase(void *dest, unsigned int len, void **err_addr) {
     unsigned char *d = hal_flash_xlate(dest);
     memset(d, 0xFF, len);  /* erased flash reads as 0xFF */
-    if (err_addr) *err_addr = (void *)0;
+    HAL_ERR_CLEAR(err_addr);
     return 0;
 }
 
 int flash_program(void *dest, void *src, unsigned int len, void **err_addr) {
     unsigned char *d = hal_flash_xlate(dest);
     memcpy(d, src, len);
-    if (err_addr) *err_addr = (void *)0;
+    HAL_ERR_CLEAR(err_addr);
     return 0;
 }
 
