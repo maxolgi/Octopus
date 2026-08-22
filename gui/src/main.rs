@@ -50,8 +50,6 @@ impl OctopusApp {
             error: String::new(),
         };
         app.refresh_devices();
-        // The app exists to run the engine — start it immediately.
-        app.start();
         app
     }
 
@@ -260,14 +258,14 @@ impl eframe::App for OctopusApp {
             ui.separator();
             ui.add_space(8.0);
 
-            // --- Engine + web server (engine starts with the app) ---
+            // --- Engine + web server (one Start per application run) ---
             ui.horizontal(|ui| {
-                if running {
+                if !running && !self.stopped {
                     if ui
-                        .add(egui::Button::new("Stop").min_size(egui::vec2(100.0, 28.0)))
+                        .add(egui::Button::new("Start").min_size(egui::vec2(100.0, 28.0)))
                         .clicked()
                     {
-                        self.stop();
+                        self.start();
                     }
                 }
                 let color = if running {
@@ -282,7 +280,7 @@ impl eframe::App for OctopusApp {
             });
 
             ui.horizontal(|ui| {
-                ui.checkbox(&mut self.autosave, "Save state on stop");
+                ui.checkbox(&mut self.autosave, "Save state on exit");
             });
 
             if running {
