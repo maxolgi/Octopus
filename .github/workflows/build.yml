@@ -1,0 +1,223 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+# Cancel superseded runs on the same ref.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1. Fast checks on every push / PR.
+  #    Rust only — the C engine has no automated test suite (manual scripts in
+  #    tests/ need a running engine + MIDI loopback).
+  # ---------------------------------------------------------------------------
+  check:
+    name: Lint + test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            ui
+            cli_ui
+
+      - name: Install Linux build deps (ALSA + eframe/egui X11/Wayland headers)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake pkg-config libasound2-dev \
+            libxcb1-dev libxrandr-dev libxinerama-dev libxcursor-dev \
+            libxi-dev libxext-dev libxkbcommon-dev libwayland-dev
+
+      # fmt is advisory (pre-existing diffs). clippy shows lints without
+      # -D warnings so it doesn't error on intentional patterns.
+      - name: cargo fmt --check (ui)
+        continue-on-error: true
+        working-directory: ui
+        run: cargo fmt --all -- --check
+
+      - name: cargo fmt --check (cli_ui)
+        continue-on-error: true
+        working-directory: cli_ui
+        run: cargo fmt --all -- --check
+
+      - name: cargo clippy (ui)
+        working-directory: ui
+        run: cargo clippy --all-targets
+
+      - name: cargo clippy (cli_ui)
+        working-directory: cli_ui
+        run: cargo clippy --all-targets
+
+      - name: cargo test (ui)
+        working-directory: ui
+        run: cargo test
+
+      - name: cargo test (cli_ui)
+        working-directory: cli_ui
+        run: cargo test
+
+  # ---------------------------------------------------------------------------
+  # 2. Full build — Linux, Windows. No macOS: the C engine is ALSA/winmm only.
+  #    Each entry builds the C engine (Octopus + Nemo variants) and both Rust
+  #    bridges (octopus_ui embeds the HTML at compile time via include_str!).
+  #    dist/ also carries the HTML files — cli_ui reads them from its cwd at
+  #    runtime, so they ship next to the binaries.
+  # ---------------------------------------------------------------------------
+  build:
+    name: Build (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x64
+            os: ubuntu-latest
+            artifact: octopus-linux-x64
+          - name: Windows x64
+            os: windows-latest
+            artifact: octopus-windows-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            ui
+            cli_ui
+
+      # ----- C engine -----------------------------------------------------
+      - name: Install Linux build deps (ALSA)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev
+
+      # MSYS2 ucrt64 gcc is preinstalled on windows runners at C:\msys64.
+      # build_win.ps1 also auto-detects this path, but put it in PATH first
+      # so gcc is found before any other toolchain.
+      - name: Add MSYS2 ucrt64 to PATH
+        if: runner.os == 'Windows'
+        run: echo "C:\msys64\ucrt64\bin" >> $GITHUB_PATH
+        shell: bash
+
+      - name: Build C engine (Linux — Octopus + Nemo)
+        if: runner.os == 'Linux'
+        run: |
+          mkdir -p dist
+          make clean && make && cp build/octopus dist/
+          # Objects are shared between variants — clean in between, else the
+          # Nemo link reuses .o files compiled without -DNEMO.
+          make clean && make NEMO=1 && cp build/nemo dist/
+
+      - name: Build C engine (Windows — Octopus + Nemo)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          powershell -ExecutionPolicy Bypass -File build_win.ps1
+          Copy-Item build\octopus.exe dist\
+          powershell -ExecutionPolicy Bypass -File build_win.ps1 -Clean -Nemo
+          Copy-Item build\nemo.exe dist\
+
+      # ----- Rust bridges ---------------------------------------------------
+      - name: Build octopus_ui (Rust UI launcher)
+        run: cargo build --release
+        working-directory: ui
+
+      - name: Build cli_ui (Rust standalone bridge)
+        run: cargo build --release
+        working-directory: cli_ui
+
+      - name: Stage dist (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          cp ui/target/release/octopus_ui cli_ui/target/release/cli_ui dist/
+          cp web_gui.html web_gui_nemo.html dist/
+          strip dist/octopus dist/nemo
+
+      - name: Stage dist (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cp ui/target/release/octopus_ui.exe cli_ui/target/release/cli_ui.exe dist/
+          cp web_gui.html web_gui_nemo.html dist/
+
+      - name: Upload dist
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # 3. Publish a GitHub Release for every successful build.
+  #    - Push to main  → prerelease tagged dev-<short_sha>
+  #    - v* tag push    → stable release tagged <version>, marked "latest"
+  # ---------------------------------------------------------------------------
+  release:
+    name: Publish release
+    needs: build
+    if: >-
+      github.event_name != 'pull_request' &&
+      (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          path: artifacts
+
+      - name: Stage release assets
+        run: |
+          mkdir -p release
+          (cd artifacts/octopus-linux-x64   && zip -r "$GITHUB_WORKSPACE/release/octopus-linux-x64.zip" .)
+          (cd artifacts/octopus-windows-x64 && zip -r "$GITHUB_WORKSPACE/release/octopus-windows-x64.zip" .)
+
+      - name: Set release metadata
+        id: meta
+        env:
+          SHA: ${{ github.sha }}
+          REF: ${{ github.ref }}
+        run: |
+          short="${SHA:0:7}"
+          if [[ "$REF" == refs/tags/v* ]]; then
+            echo "tag=${REF#refs/tags/}"    >> "$GITHUB_OUTPUT"
+            echo "name=${REF#refs/tags/}"   >> "$GITHUB_OUTPUT"
+            echo "prerelease=false"         >> "$GITHUB_OUTPUT"
+            echo "make_latest=true"         >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=dev-${short}"         >> "$GITHUB_OUTPUT"
+            echo "name=Dev ${short}"        >> "$GITHUB_OUTPUT"
+            echo "prerelease=true"          >> "$GITHUB_OUTPUT"
+            echo "make_latest=false"        >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: ${{ steps.meta.outputs.name }}
+          prerelease: ${{ steps.meta.outputs.prerelease }}
+          make_latest: ${{ steps.meta.outputs.make_latest }}
+          files: release/*
+          generate_release_notes: true
+          fail_on_unmatched_files: true
