@@ -1,7 +1,7 @@
-# Octopus/Nemo Linux Port
+# Octopus Linux/Windows Port
 
-A faithful port of the Genoqs Octopus and Nemo MIDI sequencer firmware to Linux,
-using ALSA for MIDI I/O and OSC for the control surface.
+A faithful port of the Genoqs Octopus MIDI sequencer firmware to Linux and
+Windows, using ALSA/winmm for MIDI I/O and OSC for the control surface.
 
 > **Also available:** The [`cuttlefish-v6`](../../tree/cuttlefish-v6) branch builds against the
 > octopus-cuttlefish-6.0.0 firmware with SoloRec, MIDI slave clock, and recording features.
@@ -13,18 +13,15 @@ using ALSA for MIDI I/O and OSC for the control surface.
 git clone --recurse-submodules <repo-url>
 cd Octopus
 
-# Build (requires: gcc, libasound2-dev)
-make                    # build Octopus
-make NEMO=1             # build Nemo variant
+# Build everything (requires: gcc, libasound2-dev, Rust)
+# produces build/octopus + octopus_gui + octopus_cli
+cargo build --release
 
-# Run the engine
-./build/octopus &
-
-# Start the web GUI
-python3 web_gui.py
+# Run headless (engine + web control surface)
+./target/release/octopus_cli
 
 # Open in browser
-# http://localhost:8080
+# http://localhost:8088
 ```
 
 If you cloned without `--recurse-submodules`, initialize the firmware submodule:
@@ -120,7 +117,7 @@ The engine can be driven from a browser-based control surface in two ways:
 Both Rust hosts are built from the same Cargo workspace (`engine/`, `gui/`,
 `cli/`) and share one code path: the `octopus-engine` crate hosts the C engine
 in-process (no subprocess, no OSC UDP loopback on port 9000), serves the HTML
-control surface on port 8080 and bridges WebSocket ↔ engine directly.
+control surface on port 8088 and bridges WebSocket ↔ engine directly.
 
 ```bash
 # Requires gcc + libasound2-dev (the build compiles the C engine into

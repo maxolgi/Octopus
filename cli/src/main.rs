@@ -13,7 +13,7 @@ fn print_help() {
     eprintln!();
     eprintln!("Options:");
     eprintln!("  --osc-port <n>   OSC UDP input port (default: 8000, 0 disables)");
-    eprintln!("  --http-port <n>  Web GUI HTTP port (default: 8080, WS = port+1)");
+    eprintln!("  --http-port <n>  Web GUI HTTP port (default: 8088, WS = port+1)");
     eprintln!("  --out-a <id>     MIDI output A device ID");
     eprintln!("  --out-b <id>     MIDI output B device ID");
     eprintln!("  --in <id>        MIDI input device ID");
@@ -27,7 +27,7 @@ fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
 
     let mut opts = Options::default();
-    let mut http_port: u16 = 8080;
+    let mut http_port: u16 = 8088;
     let mut autosave = false;
 
     let mut i = 0;
@@ -38,7 +38,7 @@ fn main() {
                 i += 1;
             }
             "--http-port" if i + 1 < args.len() => {
-                http_port = args[i + 1].parse().unwrap_or(8080);
+                http_port = args[i + 1].parse().unwrap_or(8088);
                 i += 1;
             }
             "--out-a" if i + 1 < args.len() => {

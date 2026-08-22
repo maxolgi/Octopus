@@ -122,7 +122,7 @@ cargo build --release
 ./target/release/octopus_gui    # egui desktop app: MIDI picker + Start/Stop
 ./target/release/octopus_cli    # headless: engine + web server, Ctrl+C to quit
 ```
-Both serve HTTP 8080 + WebSocket 8081 with the HTML embedded via `include_str!`. WebSocket input goes straight into the engine via `oct_send_osc()`; engine output frames arrive via the C frame callback and are broadcast to WebSocket clients. The OSC UDP input listener (port 8000) still runs in-process for external control surfaces and test scripts.
+Both serve HTTP 8088 + WebSocket 8089 with the HTML embedded via `include_str!`. WebSocket input goes straight into the engine via `oct_send_osc()`; engine output frames arrive via the C frame callback and are broadcast to WebSocket clients. The OSC UDP input listener (port 8000) still runs in-process for external control surfaces and test scripts. The GUI starts the engine automatically on launch and can switch MIDI devices live via OSC (`/midi/out_a` etc.); the engine is one-shot per process, so after Stop the app must be relaunched.
 
 ### 2. Standalone engine + Python bridge (legacy)
 ```bash

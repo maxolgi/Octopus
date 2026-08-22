@@ -37,7 +37,7 @@ impl OctopusApp {
     fn new() -> Self {
         let mut app = Self {
             osc_port: "8000".to_string(),
-            http_port: "8080".to_string(),
+            http_port: "8088".to_string(),
             autosave: false,
             out_a: -1,
             out_b: -1,
@@ -50,6 +50,8 @@ impl OctopusApp {
             error: String::new(),
         };
         app.refresh_devices();
+        // The app exists to run the engine — start it immediately.
+        app.start();
         app
     }
 
@@ -76,7 +78,7 @@ impl OctopusApp {
             return;
         }
         let osc_port: u16 = self.osc_port.parse().unwrap_or(8000);
-        let http_port: u16 = self.http_port.parse().unwrap_or(8080);
+        let http_port: u16 = self.http_port.parse().unwrap_or(8088);
 
         let engine = match Engine::start(&Options {
             osc_udp_port: osc_port,
@@ -120,7 +122,7 @@ impl OctopusApp {
     }
 
     fn open_browser(&self) {
-        let port: u16 = self.http_port.parse().unwrap_or(8080);
+        let port: u16 = self.http_port.parse().unwrap_or(8088);
         let url = format!("http://localhost:{}", port);
         #[cfg(target_os = "linux")]
         {
@@ -181,7 +183,9 @@ impl eframe::App for OctopusApp {
             ui.separator();
             ui.add_space(8.0);
 
-            // --- MIDI section ---
+            // --- MIDI section (live: switching while running reconnects
+            //     the ALSA/winmm ports via OSC, no restart needed) ---
+            let mut midi_change: Option<(&str, i32)> = None;
             ui.horizontal(|ui| {
                 ui.label("MIDI Out A:");
                 let name = self
@@ -194,7 +198,9 @@ impl eframe::App for OctopusApp {
                     .selected_text(name)
                     .show_ui(ui, |ui| {
                         for (id, name) in &self.devices_out {
-                            ui.selectable_value(&mut self.out_a, *id, name);
+                            if ui.selectable_value(&mut self.out_a, *id, name).changed() {
+                                midi_change = Some(("/midi/out_a", *id));
+                            }
                         }
                     });
             });
@@ -211,7 +217,9 @@ impl eframe::App for OctopusApp {
                     .selected_text(name)
                     .show_ui(ui, |ui| {
                         for (id, name) in &self.devices_out {
-                            ui.selectable_value(&mut self.out_b, *id, name);
+                            if ui.selectable_value(&mut self.out_b, *id, name).changed() {
+                                midi_change = Some(("/midi/out_b", *id));
+                            }
                         }
                     });
             });
@@ -228,10 +236,16 @@ impl eframe::App for OctopusApp {
                     .selected_text(name)
                     .show_ui(ui, |ui| {
                         for (id, name) in &self.devices_in {
-                            ui.selectable_value(&mut self.midi_in, *id, name);
+                            if ui.selectable_value(&mut self.midi_in, *id, name).changed() {
+                                midi_change = Some(("/midi/in", *id));
+                            }
                         }
                     });
             });
+
+            if let (Some((addr, id)), Some(engine)) = (midi_change, &self.engine) {
+                engine.send_osc(&octopus_engine::osc_int(addr, id));
+            }
 
             ui.horizontal(|ui| {
                 if ui
@@ -246,17 +260,9 @@ impl eframe::App for OctopusApp {
             ui.separator();
             ui.add_space(8.0);
 
-            // --- Engine + web server (single switch) ---
+            // --- Engine + web server (engine starts with the app) ---
             ui.horizontal(|ui| {
-                if !running {
-                    if !self.stopped
-                        && ui
-                            .add(egui::Button::new("Start").min_size(egui::vec2(100.0, 28.0)))
-                            .clicked()
-                    {
-                        self.start();
-                    }
-                } else {
+                if running {
                     if ui
                         .add(egui::Button::new("Stop").min_size(egui::vec2(100.0, 28.0)))
                         .clicked()
@@ -285,7 +291,7 @@ impl eframe::App for OctopusApp {
                     if ui.button("Open Browser").clicked() {
                         self.open_browser();
                     }
-                    let port: u16 = self.http_port.parse().unwrap_or(8080);
+                    let port: u16 = self.http_port.parse().unwrap_or(8088);
                     ui.label(format!("http://localhost:{}", port));
                 });
             }

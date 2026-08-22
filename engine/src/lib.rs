@@ -162,6 +162,23 @@ impl Engine {
     }
 }
 
+/// Build a minimal OSC message with a single int argument
+/// (e.g. runtime MIDI device switching: `/midi/out_a 128`).
+pub fn osc_int(address: &str, value: i32) -> Vec<u8> {
+    let mut msg = Vec::new();
+    msg.extend_from_slice(address.as_bytes());
+    msg.push(0);
+    while msg.len() % 4 != 0 {
+        msg.push(0);
+    }
+    msg.extend_from_slice(b",i\0");
+    while msg.len() % 4 != 0 {
+        msg.push(0);
+    }
+    msg.extend_from_slice(&value.to_be_bytes());
+    msg
+}
+
 /// List MIDI devices: `(outputs, inputs)` as `(device_id, name)` pairs.
 pub fn list_midi_devices() -> (Vec<(i32, String)>, Vec<(i32, String)>) {
     let mut outs = Vec::new();
