@@ -1,9 +1,9 @@
 /*
- * main_linux.c — Linux entry point for the Octopus/Nemo port.
+ * engine.c — Engine core for the Octopus port (single translation unit).
  *
- * Phase 0: memory init (done)
- * Phase 1: ALSA MIDI out + sequencer thread (done)
- * Phase 2: OSC input server (keys + transport)
+ * Pulls in the entire firmware (same include chain as the original main.c)
+ * and provides the engine lifecycle API used by both the standalone
+ * binary (engine_main.c) and the hosted Rust GUI/CLI (via FFI).
  */
 
 /* Pull in the entire firmware — same include chain as original main.c. */
@@ -20,6 +20,12 @@
 #include "_OCT_global/flash-block.c"
 #include "_OCT_interrupts/cpu-load.c"
 
+#include "engine_api.h"
+
+#ifndef _WIN32
+#include <sys/mman.h>
+#endif
+
 /* ============================================================ */
 /* Sequencer thread — replaces Timer1 ISR + driveSequencer      */
 /* ============================================================ */
@@ -27,15 +33,18 @@ static volatile int sequencer_running = 0;
 static pthread_t sequencer_pthread;
 volatile int main_running = 1;
 
+/* Hosted mode flag: set when running inside another process (Rust GUI/CLI).
+ * Suppresses the /quit kill(getpid(), SIGINT) in osc_server.c, which would
+ * otherwise terminate the host process. */
+int g_oct_hosted = 0;
+
+/* State file path (may be overridden by opts) */
+char g_oct_state_path[512] = "octopus_state.bin";
+
 /* Precomputed nanoseconds per 48-PPQN tick. Updated by
  * G_TIMER_REFILL_update() whenever G_master_tempo changes.
  * Read by the sequencer thread hot loop to avoid FP division. */
 volatile long g_tick_ns = 0;
-
-#include <signal.h>
-#ifndef _WIN32
-#include <sys/mman.h>
-#endif
 
 static void *sequencer_thread_func(void *arg) {
     (void)arg;
@@ -188,20 +197,6 @@ static void start_sequencer_thread(void) {    sequencer_running = 1;
     pthread_create(&sequencer_pthread, NULL, sequencer_thread_func, NULL);
 }
 
-#ifdef _WIN32
-/* Windows console control handler — catches Ctrl+C and close events.
- * Sets main_running = 0 to break the main loop for clean shutdown. */
-static BOOL WINAPI console_ctrl_handler(DWORD ctrl) {
-    if (ctrl == CTRL_C_EVENT || ctrl == CTRL_CLOSE_EVENT ||
-        ctrl == CTRL_BREAK_EVENT) {
-        fprintf(stderr, "\nmain: received console ctrl event %lu, shutting down...\n", ctrl);
-        main_running = 0;
-        return TRUE;
-    }
-    return FALSE;
-}
-#endif
-
 /* ============================================================ */
 /* State save/load (PersistentV2 format)                         */
 /* ============================================================ */
@@ -241,80 +236,75 @@ void save_state(const char *filepath) {
     fprintf(stderr, "save_state: saved %u pages + grid to '%s'\n", MAX_NROF_PAGES, filepath);
 }
 
-/* ============================================================ */
-/* Main entry point                                             */
-/* ============================================================ */
+static void load_state(const char *filepath) {
+    FILE *f = fopen(filepath, "rb");
+    if (!f) return;
 
-int main(int argc, char **argv) {
-    unsigned int pvalue = 0;
-    int osc_port = 8000;
-    int list_and_exit = 0;
-    int autosave = 0;
-    int i;
+    extern void PersPageImport(const card8*, size_t, Pagestruct*);
+    extern void PersGridImport(const card8*, size_t);
 
-    /* Parse command-line arguments */
-    for (i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "--list-midi") == 0 || strcmp(argv[i], "-l") == 0) {
-            list_and_exit = 1;
-        } else if (strcmp(argv[i], "--autosave") == 0) {
-            autosave = 1;
-        } else if ((strcmp(argv[i], "--out-a") == 0 || strcmp(argv[i], "--out_a") == 0) && i + 1 < argc) {
-            midi_set_device(0, atoi(argv[++i]));
-        } else if ((strcmp(argv[i], "--out-b") == 0 || strcmp(argv[i], "--out_b") == 0) && i + 1 < argc) {
-            midi_set_device(1, atoi(argv[++i]));
-        } else if ((strcmp(argv[i], "--in") == 0 || strcmp(argv[i], "--in-midi") == 0 || strcmp(argv[i], "--in_midi") == 0) && i + 1 < argc) {
-            midi_set_device(2, atoi(argv[++i]));
-        } else if ((strcmp(argv[i], "--osc-port") == 0 || strcmp(argv[i], "--osc_port") == 0) && i + 1 < argc) {
-            osc_port = atoi(argv[++i]);
-        } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
-            fprintf(stderr,
-                "Usage: %s [options]\n"
-                "\n"
-                "Options:\n"
-                "  --out-a <id>   Output port A device (default: -1=MIDI_MAPPER)\n"
-                "  --out-b <id>   Output port B device (default: -1=MIDI_MAPPER)\n"
-                "  --in <id>      Input device (default: 0)\n"
-                "  --osc-port <n> OSC server port (default: 8000)\n"
-                "  --autosave    Save state to octopus_state.bin on exit (default: off)\n"
-                "  --list-midi    List MIDI devices and exit\n"
-                "  --help         Show this help\n"
-                "\n"
-                "Device IDs: -1 = MIDI_MAPPER (system default), 0..N = device index.\n"
-                "Use --list-midi to see available devices and their IDs.\n"
-                "Underscores are accepted: --out_a, --out_b, --osc_port\n"
-                "\n", argv[0]);
-            return 0;
+    char tag[4];
+    unsigned sz;
+    int pages_loaded = 0, grid_loaded = 0;
+
+    while (fread(tag, 1, 4, f) == 4 && fread(&sz, 4, 1, f) == 1) {
+        card8 buf[65536];
+        if (sz > sizeof(buf)) break;
+        if (fread(buf, 1, sz, f) != sz) break;
+
+        if (memcmp(tag, "GRID", 4) == 0) {
+            PersGridImport(buf, sz);
+            grid_loaded = 1;
+        } else if (memcmp(tag, "PAGE", 4) == 0) {
+            PagePersistentV2 *pp = (PagePersistentV2 *)buf;
+            if (pp->pageNdx < MAX_NROF_PAGES) {
+                PersPageImport(buf, sz, &Page_repository[pp->pageNdx]);
+                pages_loaded++;
+            }
         }
     }
 
-    /* --list-midi: list devices and exit (cross-platform) */
-    if (list_and_exit) {
-#ifdef _WIN32
-        timeBeginPeriod(1);
-        midi_list_devices();
-        timeEndPeriod(1);
-#else
-        midi_list_devices();
-#endif
-        return 0;
+    /* Re-assign Step and Track pointers */
+    extern void Page_repository_assign_Steps(void);
+    extern void Page_repository_assign_Tracks(void);
+    Page_repository_assign_Steps();
+    Page_repository_assign_Tracks();
+
+    fclose(f);
+    fprintf(stderr, "engine: state loaded (%d pages, grid=%d)\n", pages_loaded, grid_loaded);
+}
+
+/* ============================================================ */
+/* Hosted engine API                                             */
+/* ============================================================ */
+
+static int engine_started = 0;
+
+int oct_engine_start(const oct_engine_opts_t *opts) {
+    oct_engine_opts_t def;
+    unsigned int pvalue = 0;
+
+    if (engine_started) {
+        fprintf(stderr, "engine: already started (one start per process)\n");
+        return -1;
+    }
+    if (!opts) {
+        def.osc_udp_port = 8000;
+        def.out_a = -1;
+        def.out_b = -1;
+        def.midi_in = -1;
+        def.state_file = NULL;
+        def.hosted = 0;
+        opts = &def;
     }
 
-#ifdef _WIN32
-    /* Windows: use SetConsoleCtrlHandler for clean shutdown.
-     * The handler sets main_running = 0 to break the main loop. */
-    SetConsoleCtrlHandler(console_ctrl_handler, TRUE);
-#else
-    /* Linux: Block SIGINT/SIGTERM in this thread. All subsequently created
-     * threads inherit this mask, so signals never interrupt worker
-     * threads. The main loop uses sigwait() to catch them synchronously. */
-    sigset_t mask;
-    sigemptyset(&mask);
-    sigaddset(&mask, SIGINT);
-    sigaddset(&mask, SIGTERM);
-    pthread_sigmask(SIG_BLOCK, &mask, NULL);
-#endif
+    if (opts->hosted) g_oct_hosted = 1;
+    if (opts->state_file && opts->state_file[0]) {
+        strncpy(g_oct_state_path, opts->state_file, sizeof(g_oct_state_path) - 1);
+        g_oct_state_path[sizeof(g_oct_state_path) - 1] = '\0';
+    }
 
-    fprintf(stderr, "octopus-linux: starting (Phase 2: OSC input)\n");
+    fprintf(stderr, "engine: starting\n");
 
     /* Flash init */
     flash_init(diag_printf);
@@ -333,52 +323,19 @@ int main(int argc, char **argv) {
     HAL_CLOCK_READ(&pvalue);
     srand(pvalue);
 
-    /* Initialize MIDI */
+    /* Initialize MIDI (device selection from opts) */
+    midi_set_device(0, opts->out_a);
+    midi_set_device(1, opts->out_b);
+    midi_set_device(2, opts->midi_in);
     midi_init(24);
 
     /* Initialize all memory, repositories, defaults */
-    fprintf(stderr, "main: calling Octopus_memory_init()...\n");
+    fprintf(stderr, "engine: calling Octopus_memory_init()...\n");
     Octopus_memory_init();
-    fprintf(stderr, "main: Octopus_memory_init() completed\n");
+    fprintf(stderr, "engine: Octopus_memory_init() completed\n");
 
     /* Auto-load saved state (AFTER init) */
-    {
-        FILE *f = fopen("octopus_state.bin", "rb");
-        if (f) {
-            extern void PersPageImport(const card8*, size_t, Pagestruct*);
-            extern void PersGridImport(const card8*, size_t);
-
-            char tag[4];
-            unsigned sz;
-            int pages_loaded = 0, grid_loaded = 0;
-
-            while (fread(tag, 1, 4, f) == 4 && fread(&sz, 4, 1, f) == 1) {
-                card8 buf[65536];
-                if (sz > sizeof(buf)) break;
-                if (fread(buf, 1, sz, f) != sz) break;
-
-                if (memcmp(tag, "GRID", 4) == 0) {
-                    PersGridImport(buf, sz);
-                    grid_loaded = 1;
-                } else if (memcmp(tag, "PAGE", 4) == 0) {
-                    PagePersistentV2 *pp = (PagePersistentV2 *)buf;
-                    if (pp->pageNdx < MAX_NROF_PAGES) {
-                        PersPageImport(buf, sz, &Page_repository[pp->pageNdx]);
-                        pages_loaded++;
-                    }
-                }
-            }
-
-            /* Re-assign Step and Track pointers */
-            extern void Page_repository_assign_Steps(void);
-            extern void Page_repository_assign_Tracks(void);
-            Page_repository_assign_Steps();
-            Page_repository_assign_Tracks();
-
-            fclose(f);
-            fprintf(stderr, "main: state loaded (%d pages, grid=%d)\n", pages_loaded, grid_loaded);
-        }
-    }
+    load_state(g_oct_state_path);
 
     /* Set clock to internal */
     G_clock_source = INT;
@@ -386,64 +343,54 @@ int main(int argc, char **argv) {
     /* Update timer refill (tempo) */
     G_TIMER_REFILL_update();
 
-    /* Start OSC server (input from control surface) */
-    osc_server_init(osc_port);
+    /* Start OSC server (input from control surface) — optional when hosted;
+     * the host injects commands directly via oct_send_osc(). */
+    if (opts->osc_udp_port > 0) {
+        osc_server_init(opts->osc_udp_port);
+    }
 
-    /* Start OSC renderer (output to control surface) */
-    osc_render_init("127.0.0.1", 9000);
+    /* Start OSC renderer (output to control surface). When a frame callback
+     * is registered (hosted mode), MIR frames go to the callback instead of
+     * the UDP loopback on port 9000. */
     osc_render_start();
-
-    /* Print connection info */
-    int client_id = midi_get_client_id();
-    fprintf(stderr, "\n");
-    fprintf(stderr, "========================================\n");
-    fprintf(stderr, " Octopus Linux Port - Phase 2\n");
-    fprintf(stderr, "========================================\n");
-    fprintf(stderr, " ALSA client: %d (ports %d:0, %d:1)\n", client_id, client_id, client_id);
-    fprintf(stderr, " OSC server:  port %d\n", osc_port);
-    fprintf(stderr, " Tempo:       %d BPM\n", G_master_tempo);
-    fprintf(stderr, " Clock:       %s\n", G_clock_source == INT ? "Internal" : "External");
-    fprintf(stderr, "========================================\n");
-    fprintf(stderr, "\n");
-    fprintf(stderr, "OSC commands:\n");
-    fprintf(stderr, "  /octopus/transport \"start\"\n");
-    fprintf(stderr, "  /octopus/transport \"stop\"\n");
-    fprintf(stderr, "  /octopus/key <index> <1=press|0=release>\n");
-    fprintf(stderr, "  /octopus/rotary <0-20> <1=DEC|2=INC>\n");
-    fprintf(stderr, "  /octopus/tempo <bpm>\n");
-    fprintf(stderr, "  /octopus/quit\n");
-    fprintf(stderr, "\n");
 
     /* Start the sequencer */
     sequencer_START();
     start_sequencer_thread();
 
-    /* Main loop — wait for /octopus/quit or Ctrl+C.
-     * main_running is set to 0 by /octopus/quit via OSC, or by the
-     * console control handler (Windows) / signal handler (Linux). */
-    fprintf(stderr, "main: running. Send /octopus/quit or Ctrl+C to exit.\n");
-    while (main_running) {
-#ifdef _WIN32
-        Sleep(100);
-#else
-        int sig;
-        if (sigwait(&mask, &sig) == 0) {
-            fprintf(stderr, "\nmain: received signal %d, shutting down...\n", sig);
-            main_running = 0;
-        }
-#endif
-    }
+    engine_started = 1;
 
-    /* Cleanup — order matters on Windows to avoid zombie processes:
-     * 1. Stop all thread running flags
-     * 2. Close MIDI devices (prevents winmm DLL cleanup hang)
-     * 3. Save state
-     * 4. TerminateProcess (skips DllMain that would hang on open handles)
-     */
-    fprintf(stderr, "main: shutting down...\n");
+    {
+        int client_id = midi_get_client_id();
+        fprintf(stderr, "engine: running (ALSA client %d, OSC UDP %d, tempo %d BPM)\n",
+                client_id, opts->osc_udp_port, G_master_tempo);
+    }
+    return 0;
+}
+
+int oct_engine_running(void) {
+    return engine_started;
+}
+
+int oct_engine_wants_quit(void) {
+    return main_running == 0;
+}
+
+void oct_save_state(const char *filepath) {
+    save_state(filepath ? filepath : g_oct_state_path);
+}
+
+void oct_engine_stop(void) {
+    if (!engine_started) return;
+    engine_started = 0;
+
+    fprintf(stderr, "engine: shutting down...\n");
     fflush(stderr);
     sequencer_STOP(true);
     sequencer_running = 0;
+
+    osc_server_stop();
+    osc_render_stop();
 
 #ifdef _WIN32
     /* Give the sequencer thread a moment to notice sequencer_running=0
@@ -451,24 +398,13 @@ int main(int argc, char **argv) {
      * take too long to clean up. */
     Sleep(50);
 
-    /* Close MIDI devices BEFORE exiting. If winmm handles are still
-     * open when TerminateProcess runs, the DLL detach handler can
-     * hang, creating an unkillable zombie process. */
+    /* Close MIDI devices before the host continues teardown. If winmm
+     * handles are still open at process exit, the DLL detach handler
+     * can hang, creating an unkillable zombie process. */
     midi_cleanup();
 #else
     pthread_join(sequencer_pthread, NULL);
 #endif
-
-    /* Auto-save state (only if --autosave flag was passed) */
-    if (autosave) {
-        save_state("octopus_state.bin");
-    }
-
-    fprintf(stderr, "main: done.\n");
+    fprintf(stderr, "engine: stopped\n");
     fflush(stderr);
-#ifdef _WIN32
-    TerminateProcess(GetCurrentProcess(), 0);
-#else
-    _exit(0);
-#endif
 }

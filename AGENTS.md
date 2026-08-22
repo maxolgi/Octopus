@@ -1,7 +1,8 @@
 # AGENTS.md
 
-Genoqs Octopus/Nemo MIDI sequencer firmware ported from eCos/ARM to Linux and Windows.
-C engine (ALSA/winmm MIDI, custom OSC over UDP), three interchangeable web GUI bridges serving the same HTML control surface (Python, Rust standalone, Rust UI launcher).
+Genoqs Octopus MIDI sequencer firmware ported from eCos/ARM to Linux and Windows.
+C engine (ALSA/winmm MIDI, custom OSC over UDP) hosted in-process by a Rust
+workspace that serves the HTML control surface (egui GUI + headless CLI).
 
 ## Firmware submodule
 
@@ -23,50 +24,48 @@ git submodule update --init
 
 ### C engine (Linux)
 ```bash
-make              # Octopus (10 tracks × 16 steps)
-make NEMO=1       # Nemo variant (8 tracks, Cadence, Wilson windowing)
+make              # build/octopus (standalone) + build/liboctopus.a (static lib for Rust hosts)
 make clean
 ```
 Requires: `gcc`, `libasound2-dev`. Links: `-lasound -lpthread -lm`.
 
 ### C engine (Windows)
 ```powershell
-powershell -ExecutionPolicy Bypass -File build_win.ps1          # Octopus
-powershell -ExecutionPolicy Bypass -File build_win.ps1 -Nemo    # Nemo
+powershell -ExecutionPolicy Bypass -File build_win.ps1          # standalone octopus.exe
+powershell -ExecutionPolicy Bypass -File build_win.ps1 -Lib     # build\liboctopus.a (for Rust hosts)
 powershell -ExecutionPolicy Bypass -File build_win.ps1 -Clean
 ```
 Requires: MSYS2 ucrt64 gcc in PATH (`C:\msys64\ucrt64\bin`). Links: `-lwinmm -lws2_32 -lwinpthread -lm -lkernel32 -lavrt`.
 
-### Rust UI launcher
+### Rust workspace (octopus_gui + octopus_cli)
 ```bash
-cd ui && cargo build --release    # produces octopus_ui / octopus_ui.exe
+cargo build --release    # produces octopus_gui and octopus_cli
 ```
-The Rust UI launcher (`ui/src/main.rs`) finds and launches the C engine binary, provides a MIDI device picker (native egui GUI), and embeds its own web server (`ui/src/web_server.rs`) that serves the HTML control surface (compiled in via `include_str!`) and bridges WebSocket ↔ OSC on the same ports (8080/8081).
+Root Cargo workspace: `engine/` (FFI wrapper + web server, compiles the C engine into `build/liboctopus.a` via `build.rs`), `gui/` (egui desktop app), `cli/` (headless). The engine runs **in-process** — no subprocess, no OSC UDP loopback on port 9000: WebSocket input is injected via `oct_send_osc()`, engine output frames (MIR/transport) arrive through a C callback (`oct_set_frame_callback`) and are broadcast to WebSocket clients. The HTML control surface is embedded via `include_str!` (`/` → web_gui.html, `/modern` → web_gui_modern.html).
 
-### Rust web GUI bridge (standalone)
-```bash
-cd cli_ui && cargo build --release    # produces cli_ui / cli_ui.exe
-```
-Functionally identical to `web_gui.py` but with no Python dependency. Reads `web_gui.html` / `web_gui_nemo.html` at runtime from the current directory. Same ports (8080 HTTP, 8081 WebSocket, 8000/9000 OSC).
+On Windows the Rust binaries must be built with the `x86_64-pc-windows-gnu` target (the C objects are MinGW-built): `rustup target add x86_64-pc-windows-gnu && cargo build --release --target x86_64-pc-windows-gnu`.
 
-### Full release (all four binaries)
+### Full release
 ```bash
 powershell -ExecutionPolicy Bypass -File build_release.ps1   # Windows
 bash build_release.sh                                        # Linux
 ```
-Outputs to `dist/`: `octopus`, `octopus_ui`.
+Outputs to `dist/`: `octopus`, `octopus_gui`, `octopus_cli`, HTML files.
 
 ## Architecture: single translation unit
 
-**Critical:** `src/main_linux.c` `#include`s all firmware `.h` files AND several `.c` files into one translation unit, matching the original firmware's architecture. The original `.c` files in `firmware/OCT_OS/_OCT_objects/` (PersistentV1.c, PersistentV2.c, Persistent.c, Phrase.c, Phrase-presets.c) and `firmware/OCT_OS/_OCT_global/flash-block.c` are `#include`d directly — they are NOT compiled separately. Do not add them to the build sources or you will get multiple-definition errors.
+**Critical:** `src/engine.c` `#include`s all firmware `.h` files AND several `.c` files into one translation unit, matching the original firmware's architecture. The original `.c` files in `firmware/OCT_OS/_OCT_objects/` (PersistentV1.c, PersistentV2.c, Persistent.c, Phrase.c, Phrase-presets.c) and `firmware/OCT_OS/_OCT_global/flash-block.c` are `#include`d directly — they are NOT compiled separately. Do not add them to the build sources or you will get multiple-definition errors.
 
 Only the files in `src/` are compiled as separate object files:
-- `main_linux.c` — entry point, sequencer thread, state load/save
+- `engine.c` — the single firmware TU + hosted engine API (`include/engine_api.h`: `oct_engine_start/stop`, `oct_send_osc`, `oct_save_state`, `oct_set_frame_callback`), sequencer thread, state load/save
+- `engine_main.c` — thin standalone `main()` (arg parsing + start/wait/stop); NOT part of `liboctopus.a`
 - `hal_linux.c` — eCos API shim (`cyg_*` → pthread/pipe/timerfd/Win32)
-- `midi_alsa.c` (Linux) / `midi_winmm.c` (Windows) — MIDI backend
-- `osc_server.c` — OSC input server (raw UDP, no liblo)
-- `osc_render.c` — MIR → OSC output bridge + 60 Hz render thread
+- `midi_alsa.c` (Linux) / `midi_winmm.c` (Windows) — MIDI backend + `midi_enum_devices()` for the GUI picker
+- `osc_server.c` — OSC input server (raw UDP, no liblo) + shared dispatcher used by `oct_send_osc()`
+- `osc_render.c` — MIR → OSC output bridge + 60 Hz render thread (UDP mode standalone, callback mode hosted)
 - `flash_file.c` — file-based persistence
+
+The engine is one-shot per process: `oct_engine_start()` initializes the firmware once; `oct_engine_stop()` is final (the firmware cannot be re-initialized). `/quit` sets `main_running=0` but does NOT signal the process when hosted (`g_oct_hosted` flag).
 
 ## C language and compiler flags
 
@@ -107,7 +106,7 @@ When modifying firmware files, use `#ifdef __linux__` / `#ifdef _WIN32` / `#ifnd
 
 ## OSC protocol
 
-Custom OSC implementation over raw UDP (no liblo dependency). Ports: **8000** (engine input), **9000** (engine output).
+Custom OSC implementation over raw UDP (no liblo dependency). Ports (standalone engine): **8000** (input), **9000** (output). In hosted mode (Rust GUI/CLI) port 8000 still listens for external control surfaces, but output frames go to the in-process callback instead of UDP 9000.
 
 Addresses work both with and without `/octopus/` prefix — the dispatcher in `osc_server.c` matches `/key`, `/rotary`, `/transport`, etc. directly. Name-based addresses also supported: `/key/REC 1`, `/rotary/VEL 2`, etc. Name tables are in `osc_server.c` (`key_name_table`, `rot_name_table`). Full key/rotary index map: see `keymap.md`.
 
@@ -115,33 +114,30 @@ Key dispatch acquires `cyg_scheduler_lock()` / `cyg_scheduler_unlock()` to prote
 
 ## Web GUI
 
-There are **three interchangeable web GUI bridges**, all serving the same HTML control surface (`web_gui.html` / `web_gui_nemo.html`) on the same ports (HTTP 8080, WebSocket 8081, OSC 8000/9000). Only one should be running at a time. They differ only in runtime dependencies and whether they also launch the engine:
+Two ways to drive the engine from the browser HTML control surface (`web_gui.html`, `/modern` → `web_gui_modern.html`):
 
-### 1. Python bridge (`web_gui.py`)
+### 1. Rust hosts (in-process engine) — `octopus_gui` / `octopus_cli`
 ```bash
+cargo build --release
+./target/release/octopus_gui    # egui desktop app: MIDI picker + Start/Stop
+./target/release/octopus_cli    # headless: engine + web server, Ctrl+C to quit
+```
+Both serve HTTP 8080 + WebSocket 8081 with the HTML embedded via `include_str!`. WebSocket input goes straight into the engine via `oct_send_osc()`; engine output frames arrive via the C frame callback and are broadcast to WebSocket clients. The OSC UDP input listener (port 8000) still runs in-process for external control surfaces and test scripts.
+
+### 2. Standalone engine + Python bridge (legacy)
+```bash
+./build/octopus &
 python3 web_gui.py    # requires: pip3 install websockets
 ```
-Reads HTML files at runtime from the script directory. Serves `web_gui.html` (Octopus) at `/` and `web_gui_nemo.html` (Nemo) at `/nemo`.
-
-### 2. Rust standalone bridge (`cli_ui/` → binary `cli_ui`)
-```bash
-./dist/cli_ui    # or: cd cli_ui && cargo run
-```
-No Python dependency. Reads the same HTML files at runtime from the current directory. Functionally identical to the Python bridge.
-
-### 3. Rust UI launcher (`ui/` → binary `octopus_ui`)
-```bash
-./dist/octopus_ui
-```
-Native desktop app (egui). Launches the C engine automatically, provides a MIDI device picker, and embeds its own web server (`ui/src/web_server.rs`) with the HTML compiled in via `include_str!` (no external HTML files needed at runtime).
+UDP OSC loopback on port 9000 (engine → bridge). Reads HTML files at runtime from the script directory.
 
 ### HTML control surface
 
-The HTML files use inline `<style>` blocks — there is no `static/css/` directory and no external CSS files. CSS class names are specific to each HTML file (e.g., `.sbtn`, `.rb`, `.pad-btn`, `.bcell`, `.led`). All three bridges serve the same files; changes to `web_gui.html` / `web_gui_nemo.html` apply to all three (the Rust UI launcher requires a rebuild since it embeds them at compile time).
+The HTML files use inline `<style>` blocks — there is no `static/css/` directory and no external CSS files. CSS class names are specific to each HTML file (e.g., `.sbtn`, `.rb`, `.pad-btn`, `.bcell`, `.led`). The Rust hosts embed the files at compile time (rebuild required after changes); `web_gui.py` reads them from disk.
 
 ## State persistence
 
-Auto-saves to `octopus_state.bin` on exit, auto-loads on startup. Uses a simple tag-length-value format (tags: `GRID`, `PAGE`) wrapping the firmware's PersistentV2 export/import functions. The in-memory flash buffer (`hal_flash_base`, 1MB) in `hal_linux.c` is a separate mechanism used by the firmware's internal flash API.
+Auto-loads `octopus_state.bin` on startup (path overridable via `--state` / engine opts). Saving is explicit: `--autosave` (standalone/CLI), the `/save` OSC address, GRID+PGM on the control surface, or the GUI's "Save state on stop" option. Uses a simple tag-length-value format (tags: `GRID`, `PAGE`) wrapping the firmware's PersistentV2 export/import functions. The in-memory flash buffer (`hal_flash_base`, 1MB) in `hal_linux.c` is a separate mechanism used by the firmware's internal flash API.
 
 ## Sequencer thread timing
 
@@ -156,7 +152,7 @@ On Windows, shutdown order matters to avoid zombie processes:
 2. `Sleep(50)` — let sequencer thread exit its loop
 3. `midi_cleanup()` — close winmm handles (prevents DLL detach hang)
 4. Save state
-5. `TerminateProcess()` — skips DllMain that would hang on open handles
+5. `TerminateProcess()` — skips DllMain that would hang on open handles (standalone binary only — never in hosted mode, it would kill the GUI)
 
 Do not `pthread_join` the sequencer thread on Windows — MMCSS cleanup can hang.
 
@@ -168,7 +164,7 @@ No automated test suite. Tests are manual Python integration scripts in `tests/`
 python3 tests/test_osc.py            # basic OSC: transport, step toggle, tempo
 python3 tests/test_phase4.py         # rotary encoders, track attributes, zoom
 ```
-These send OSC to port 8000 and optionally listen on 9000 for MIR frames. Verify MIDI output with `aseqdump -p <client>:0` (Linux) or a MIDI monitor (Windows).
+These send OSC to port 8000 and optionally listen on 9000 for MIR frames (standalone engine only — the hosted Rust binaries deliver frames via WebSocket instead). `octopus_cli` runs the same UDP listener in-process, so the tests work against it too. Verify MIDI output with `aseqdump -p <client>:0` (Linux) or a MIDI monitor (Windows).
 
 ## Key reference docs in repo
 

@@ -1,0 +1,1206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Octopus — Neon Grid</title>
+<style>
+/* ============================================================
+   DESIGN TOKENS
+   ============================================================ */
+:root{
+  --bg-0:#06060a; --bg-1:#0d0d14; --bg-2:#13131c; --bg-3:#1a1a26;
+  --border:#26263a; --border-bright:#383855;
+  --txt-0:#e8e8f0; --txt-1:#9a9ab0; --txt-2:#5a5a70;
+  --led-red:#ff2848; --led-green:#14e850; --led-yellow:#ffc400;
+  --led-off:#1e1e2c;
+  --accent:#5b8cff; --accent-glow:rgba(91,140,255,.45);
+  --pad-size:38px;
+  --track-0:#5b8cff; --track-1:#a855f7; --track-2:#ec4899; --track-3:#f43f5e;
+  --track-4:#f97316; --track-5:#eab308; --track-6:#22c55e; --track-7:#14b8a6;
+  --track-8:#06b6d4; --track-9:#3b82f6;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden}
+body{
+  background:var(--bg-0);color:var(--txt-0);
+  font-family:'SF Mono',Monaco,'Cascadia Code','Roboto Mono',monospace;
+  font-size:12px;line-height:1.4;
+  user-select:none;-webkit-user-select:none;
+  touch-action:none;
+}
+
+/* ============================================================
+   LAYOUT
+   ============================================================ */
+#app{
+  display:grid;height:100vh;gap:5px;padding:5px;
+  grid-template-columns:190px 1fr 190px;
+  grid-template-rows:auto 1fr auto;
+  grid-template-areas:
+    "topbar topbar topbar"
+    "left   grid   right"
+    "footer footer footer";
+}
+
+/* ============================================================
+   PANELS
+   ============================================================ */
+.panel{
+  background:linear-gradient(160deg,var(--bg-2),var(--bg-1));
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:8px;
+}
+.panel-title{
+  font-size:8px;letter-spacing:1.5px;text-transform:uppercase;
+  color:var(--txt-2);margin-bottom:6px;font-weight:700;
+}
+
+/* ============================================================
+   TOP BAR
+   ============================================================ */
+#topbar{grid-area:topbar}
+#topbar-inner{
+  display:flex;align-items:center;gap:16px;
+  background:linear-gradient(180deg,var(--bg-2),var(--bg-1));
+  border:1px solid var(--border);border-radius:10px;
+  padding:8px 14px;
+}
+.brand{
+  font-size:16px;font-weight:900;letter-spacing:3px;
+  background:linear-gradient(90deg,var(--accent),#a855f7);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;
+}
+.brand-sub{font-size:8px;color:var(--txt-2);letter-spacing:2px;margin-top:-2px}
+.divider{width:1px;height:32px;background:var(--border)}
+
+/* Transport cluster */
+.transport-cluster{display:flex;gap:4px;align-items:center}
+.t-btn{
+  width:38px;height:38px;border-radius:9px;
+  background:var(--bg-3);border:1px solid var(--border);
+  color:var(--txt-1);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .1s;font-size:14px;
+}
+.t-btn:active{transform:scale(.9)}
+.t-btn.play{color:var(--led-green)}
+.t-btn.stop{color:var(--led-red)}
+.t-btn.rec{color:var(--led-red)}
+.t-btn.pause{color:var(--led-yellow)}
+.t-btn.active{background:rgba(255,255,255,.08);border-color:var(--border-bright)}
+
+/* Tempo display */
+.tempo-box{display:flex;align-items:center;gap:8px}
+.tempo-val{
+  font-size:26px;font-weight:700;color:var(--accent);
+  font-variant-numeric:tabular-nums;min-width:64px;text-align:center;
+  text-shadow:0 0 12px var(--accent-glow);
+}
+.tempo-lbl{font-size:9px;color:var(--txt-2);letter-spacing:1px}
+.tap-btn{
+  padding:6px 10px;border-radius:6px;
+  background:var(--bg-3);border:1px solid var(--border);
+  color:var(--txt-1);cursor:pointer;font-size:9px;font-weight:700;
+}
+.tap-btn:active{background:rgba(91,140,255,.2)}
+
+/* Zoom indicator */
+.zoom-pill{
+  display:flex;align-items:center;gap:6px;
+  padding:5px 12px;border-radius:20px;
+  background:var(--bg-3);border:1px solid var(--accent);
+}
+.zoom-pill .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent-glow);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.zoom-name{font-size:11px;font-weight:700;color:var(--accent);letter-spacing:1px}
+
+/* Status */
+.status-cluster{margin-left:auto;display:flex;align-items:center;gap:12px}
+.clock-mode{font-size:9px;color:var(--txt-2);letter-spacing:1px}
+.conn-dot{
+  display:inline-block;width:8px;height:8px;border-radius:50%;
+  background:var(--txt-2);margin-right:4px;
+}
+.conn-dot.on{background:var(--led-green);box-shadow:0 0 6px var(--led-green)}
+.conn-text{font-size:10px;color:var(--txt-1)}
+.gear-btn{
+  width:30px;height:30px;border-radius:7px;
+  background:var(--bg-3);border:1px solid var(--border);
+  color:var(--txt-1);cursor:pointer;font-size:14px;
+  display:flex;align-items:center;justify-content:center;
+}
+
+/* ============================================================
+   LEFT SIDEBAR — Zoom + Scale + Notes
+   ============================================================ */
+#leftbar{grid-area:left;display:flex;flex-direction:column;gap:6px;overflow-y:auto}
+#leftbar::-webkit-scrollbar{width:4px}
+#leftbar::-webkit-scrollbar-thumb{background:var(--border-bright);border-radius:2px}
+
+/* Zoom modes */
+.zoom-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.zoom-btn{
+  padding:9px 4px;border-radius:7px;
+  background:var(--bg-3);border:1px solid var(--border);
+  color:var(--txt-1);cursor:pointer;text-align:center;
+  font-size:9px;font-weight:700;letter-spacing:.5px;
+  transition:all .1s;position:relative;
+}
+.zoom-btn:active{transform:scale(.92)}
+.zoom-btn .zled{
+  position:absolute;top:3px;right:4px;
+  width:5px;height:5px;border-radius:50%;background:var(--led-off);
+}
+
+/* Scale modes */
+.scale-modes{display:grid;grid-template-columns:1fr 1fr;gap:3px}
+.scale-btn{
+  padding:6px 2px;border-radius:5px;
+  background:var(--bg-3);border:1px solid var(--border);
+  color:var(--txt-1);cursor:pointer;text-align:center;
+  font-size:8px;font-weight:600;transition:all .1s;
+  position:relative;
+}
+.scale-btn:active{transform:scale(.92)}
+.scale-btn .sled{position:absolute;top:2px;right:3px;width:4px;height:4px;border-radius:50%;background:var(--led-off)}
+
+/* Note picker */
+.note-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:3px}
+.note-btn{
+  padding:7px 2px;border-radius:5px;
+  background:var(--bg-3);border:1px solid var(--border);
+  color:var(--txt-1);cursor:pointer;text-align:center;
+  font-size:9px;font-weight:700;transition:all .1s;
+  position:relative;
+}
+.note-btn:active{transform:scale(.92)}
+.note-btn .sled{position:absolute;top:2px;left:3px;width:4px;height:4px;border-radius:50%;background:var(--led-off)}
+.note-btn.sharp{color:var(--txt-2)}
+
+/* ============================================================
+   CENTER — Step Grid
+   ============================================================ */
+#gridarea{grid-area:grid;display:flex;flex-direction:column;gap:4px;overflow:hidden}
+.grid-panel{
+  background:linear-gradient(160deg,var(--bg-2),var(--bg-1));
+  border:1px solid var(--border);border-radius:10px;
+  padding:8px;flex:1;display:flex;flex-direction:column;gap:4px;
+  overflow:auto;
+}
+
+/* Step column header */
+.step-header{
+  display:flex;align-items:center;gap:2px;
+  padding-left:96px;padding-right:42px;
+}
+.step-num{
+  flex:1;text-align:center;font-size:7px;color:var(--txt-2);
+  min-width:var(--pad-size);
+}
+
+/* Track row */
+.track-row{
+  display:flex;align-items:center;gap:2px;flex-shrink:0;
+}
+.track-label{
+  width:30px;display:flex;align-items:center;justify-content:center;
+  font-size:10px;font-weight:700;color:var(--txt-1);
+  flex-shrink:0;
+}
+.attr-cell{
+  width:56px;flex-shrink:0;display:flex;align-items:center;gap:1px;
+}
+.attr-btn{
+  width:34px;height:30px;border-radius:6px;
+  background:var(--bg-3);border:1px solid var(--border);
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  font-size:8px;font-weight:700;color:var(--txt-1);
+  transition:all .08s;position:relative;
+}
+.attr-btn:active{transform:scale(.9)}
+.attr-btn .aled{
+  position:absolute;top:2px;right:3px;
+  width:5px;height:5px;border-radius:50%;background:var(--led-off);
+}
+.mute-led{
+  width:8px;height:8px;border-radius:50%;
+  background:var(--led-off);flex-shrink:0;transition:all .1s;
+}
+
+/* Step pads */
+.pad-cell{
+  flex:1;display:flex;gap:2px;min-width:0;
+}
+.pad{
+  flex:1;min-width:var(--pad-size);height:var(--pad-size);
+  max-width:var(--pad-size);
+  border-radius:7px;cursor:pointer;
+  background:var(--bg-3);border:1px solid var(--border);
+  transition:background .06s,box-shadow .06s,border-color .06s;
+  position:relative;
+}
+
+/* Mutator cell */
+.mut-cell{
+  width:42px;flex-shrink:0;
+}
+.mut-btn{
+  width:34px;height:30px;border-radius:6px;
+  background:var(--bg-3);border:1px solid var(--border);
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  font-size:7px;font-weight:700;color:var(--txt-1);
+  transition:all .08s;position:relative;
+}
+.mut-btn:active{transform:scale(.9)}
+.mut-btn .mled{
+  position:absolute;top:2px;left:3px;
+  width:5px;height:5px;border-radius:50%;background:var(--led-off);
+}
+
+/* ============================================================
+   RIGHT SIDEBAR — Encoders
+   ============================================================ */
+#rightbar{grid-area:right;display:flex;flex-direction:column;gap:6px;overflow-y:auto}
+#rightbar::-webkit-scrollbar{width:4px}
+#rightbar::-webkit-scrollbar-thumb{background:var(--border-bright);border-radius:2px}
+
+.enc-list{display:flex;flex-direction:column;gap:4px}
+.enc-row{
+  display:flex;align-items:center;gap:3px;
+  padding:2px 0;
+}
+.enc-row .enc-lbl{
+  font-size:7px;color:var(--txt-2);width:18px;flex-shrink:0;
+  font-weight:700;
+}
+
+/* SVG Knob */
+.knob-wrap{
+  width:38px;height:38px;position:relative;cursor:ns-resize;
+  flex-shrink:0;
+}
+.knob-wrap:active{cursor:grabbing}
+.knob-wrap svg{width:100%;height:100%}
+.knob-arc-bg{fill:none;stroke:var(--border);stroke-width:3.5;stroke-linecap:round}
+.knob-arc{fill:none;stroke:var(--accent);stroke-width:3.5;stroke-linecap:round;
+  transition:stroke-dashoffset .06s;filter:drop-shadow(0 0 3px var(--accent-glow))}
+.knob-body{fill:url(#knobGrad);stroke:var(--border-bright);stroke-width:.5}
+.knob-tick{stroke:var(--txt-0);stroke-width:2;stroke-linecap:round}
+
+/* ============================================================
+   FOOTER — Mix + Chord + BigKnob + Chain + Program
+   ============================================================ */
+#footer{grid-area:footer;display:flex;gap:6px;overflow-x:auto}
+#footer::-webkit-scrollbar{height:4px}
+#footer::-webkit-scrollbar-thumb{background:var(--border-bright);border-radius:2px}
+
+.footer-group{
+  background:linear-gradient(160deg,var(--bg-2),var(--bg-1));
+  border:1px solid var(--border);border-radius:10px;
+  padding:6px 8px;display:flex;flex-direction:column;gap:4px;
+  flex-shrink:0;
+}
+.footer-group .panel-title{margin-bottom:2px}
+
+/* Mix strip buttons */
+.mix-strip{display:flex;gap:3px;flex-wrap:wrap;max-width:340px}
+.mx-btn{
+  width:38px;height:34px;border-radius:6px;
+  background:var(--bg-3);border:1px solid var(--border);
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  font-size:8px;font-weight:700;color:var(--txt-1);
+  transition:all .08s;position:relative;
+}
+.mx-btn:active{transform:scale(.9)}
+.mx-btn .mled{
+  position:absolute;top:2px;right:3px;
+  width:5px;height:5px;border-radius:50%;background:var(--led-off);
+}
+
+/* Chord / BigKnob banks */
+.bank-grid{display:flex;gap:3px;flex-wrap:wrap;max-width:200px}
+.bk-btn{
+  width:30px;height:28px;border-radius:5px;
+  background:var(--bg-3);border:1px solid var(--border);
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  font-size:8px;font-weight:700;color:var(--txt-1);
+  transition:all .08s;position:relative;
+}
+.bk-btn:active{transform:scale(.9)}
+.bk-btn .bled{
+  position:absolute;top:1px;right:2px;
+  width:4px;height:4px;border-radius:50%;background:var(--led-off);
+}
+
+/* Chain */
+.chain-grid{display:flex;gap:3px;flex-wrap:wrap;max-width:150px}
+
+/* ============================================================
+   LED STATES (applied via JS class)
+   ============================================================ */
+.led-red{background:var(--led-red)!important;box-shadow:0 0 8px var(--led-red),0 0 14px rgba(255,40,72,.4)!important}
+.led-green{background:var(--led-green)!important;box-shadow:0 0 8px var(--led-green),0 0 14px rgba(20,232,80,.35)!important}
+.led-yellow{background:var(--led-yellow)!important;box-shadow:0 0 8px var(--led-yellow),0 0 14px rgba(255,196,0,.35)!important}
+.led-off{background:var(--led-off)!important;box-shadow:none!important}
+
+/* Pad LED states */
+.pad.on-red{background:var(--led-red)!important;border-color:rgba(255,40,72,.5)!important;box-shadow:0 0 12px rgba(255,40,72,.5),inset 0 0 8px rgba(255,80,100,.3)!important}
+.pad.on-green{background:var(--led-green)!important;border-color:rgba(20,232,80,.5)!important;box-shadow:0 0 12px rgba(20,232,80,.45),inset 0 0 8px rgba(40,255,100,.2)!important}
+.pad.on-yellow{background:var(--led-yellow)!important;border-color:rgba(255,196,0,.5)!important;box-shadow:0 0 12px rgba(255,196,0,.45),inset 0 0 8px rgba(255,220,40,.2)!important}
+
+/* Held state */
+.held{opacity:.6;transform:scale(.88)!important}
+
+/* ============================================================
+   CONTEXT MENU / SETTINGS
+   ============================================================ */
+.ctx-menu{
+  position:fixed;background:var(--bg-2);border:1px solid var(--border-bright);
+  border-radius:8px;padding:10px 14px;z-index:9999;font-size:10px;
+  color:var(--txt-0);display:none;gap:8px;flex-direction:column;
+  box-shadow:0 8px 30px rgba(0,0,0,.6);
+}
+.ctx-item{display:flex;align-items:center;gap:6px;cursor:pointer}
+.ctx-item label{cursor:pointer}
+.ctx-item input[type=checkbox]{accent-color:var(--accent)}
+.ctx-item input[type=range]{width:80px;accent-color:var(--accent)}
+
+/* Responsive: stack on narrow */
+@media(max-width:880px){
+  #app{grid-template-columns:1fr;grid-template-areas:"topbar" "grid" "left" "right" "footer"}
+  #leftbar,#rightbar{flex-direction:row;overflow-x:auto;max-height:160px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ============ TOP BAR ============ -->
+  <div id="topbar">
+    <div id="topbar-inner">
+      <div>
+        <div class="brand">OCTOPUS</div>
+        <div class="brand-sub">NEON GRID</div>
+      </div>
+      <div class="divider"></div>
+
+      <!-- Transport -->
+      <div class="transport-cluster">
+        <div class="t-btn play" id="tb-play" title="Play / P1">&#9658;</div>
+        <div class="t-btn stop" id="tb-stop" title="Stop">&#9632;</div>
+        <div class="t-btn pause" id="tb-pause" title="Pause">&#10074;&#10074;</div>
+        <div class="t-btn rec" id="tb-rec" title="Record">&#9679;</div>
+      </div>
+      <div class="divider"></div>
+
+      <!-- Tempo -->
+      <div class="tempo-box">
+        <div>
+          <div class="tempo-lbl">BPM</div>
+          <div class="tempo-val" id="tempoDisplay">120</div>
+        </div>
+        <div class="tap-btn" id="tapBtn">TAP</div>
+      </div>
+      <div class="divider"></div>
+
+      <!-- Tempo knob -->
+      <div style="display:flex;align-items:center;gap:4px">
+        <div id="tpo-knob"></div>
+        <div style="font-size:8px;color:var(--txt-2)">TPO</div>
+      </div>
+      <div class="divider"></div>
+
+      <!-- Zoom indicator -->
+      <div class="zoom-pill">
+        <div class="dot"></div>
+        <div class="zoom-name" id="zoomName">PAGE</div>
+      </div>
+
+      <!-- Status -->
+      <div class="status-cluster">
+        <div class="clock-mode" id="clockMode">CLK: OFF</div>
+        <div>
+          <span class="conn-dot" id="connDot"></span>
+          <span class="conn-text" id="connText">Connecting...</span>
+        </div>
+        <div class="gear-btn" id="gearBtn">&#9881;</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ LEFT SIDEBAR ============ -->
+  <div id="leftbar">
+    <div class="panel">
+      <div class="panel-title">Zoom Modes</div>
+      <div class="zoom-grid" id="zoomModes"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Scale Types</div>
+      <div class="scale-modes" id="scaleModes"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Scale Control</div>
+      <div style="display:flex;gap:3px">
+        <div class="scale-btn" data-key="222" style="flex:1">SEL<span class="sled"></span></div>
+        <div class="scale-btn" data-key="221" style="flex:1">MOD<span class="sled"></span></div>
+        <div class="scale-btn" data-key="230" style="flex:1">CAD<span class="sled"></span></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Notes</div>
+      <div class="note-grid" id="noteGrid"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Transport +</div>
+      <div style="display:flex;gap:3px;flex-wrap:wrap">
+        <div class="scale-btn" data-key="241" style="flex:1">P1<span class="sled"></span></div>
+        <div class="scale-btn" data-key="240" style="flex:1">P2<span class="sled"></span></div>
+        <div class="scale-btn" data-key="250" style="flex:1">P4<span class="sled"></span></div>
+        <div class="scale-btn" data-key="234" style="flex:1">TPO<span class="sled"></span></div>
+        <div class="scale-btn" data-key="242" style="flex:1">PGM<span class="sled"></span></div>
+        <div class="scale-btn" data-key="251" style="flex:1">ALN<span class="sled"></span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ CENTER GRID ============ -->
+  <div id="gridarea">
+    <div class="grid-panel" id="gridPanel">
+      <!-- Step column header -->
+      <div class="step-header" id="stepHeader"></div>
+      <!-- Track rows populated by JS -->
+    </div>
+  </div>
+
+  <!-- ============ RIGHT SIDEBAR ============ -->
+  <div id="rightbar">
+    <div class="panel">
+      <div class="panel-title">Encoders</div>
+      <div class="enc-list" id="encList"></div>
+    </div>
+  </div>
+
+  <!-- ============ FOOTER ============ -->
+  <div id="footer">
+    <div class="footer-group">
+      <div class="panel-title">Mix Targets</div>
+      <div class="mix-strip" id="mixStrip"></div>
+    </div>
+    <div class="footer-group">
+      <div class="panel-title">Mix Control</div>
+      <div class="mix-strip">
+        <div class="mx-btn" data-key="164">MUT<span class="mled"></span></div>
+        <div class="mx-btn" data-key="175">EDT<span class="mled"></span></div>
+        <div class="mx-btn" data-key="186">ESC<span class="mled"></span></div>
+        <div class="mx-btn" data-key="32">SEL<span class="mled"></span></div>
+      </div>
+    </div>
+    <div class="footer-group">
+      <div class="panel-title">Chord Size</div>
+      <div class="bank-grid" id="chordBank"></div>
+    </div>
+    <div class="footer-group">
+      <div class="panel-title">Big Knob</div>
+      <div class="bank-grid" id="bigKnobBank"></div>
+    </div>
+    <div class="footer-group">
+      <div class="panel-title">Chain Mode</div>
+      <div class="chain-grid" id="chainBank"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Context menu -->
+<div class="ctx-menu" id="ctxMenu">
+  <div class="ctx-item"><span id="ctxStatus" style="color:var(--txt-1)">Connecting...</span></div>
+  <div class="ctx-item"><label><input type="checkbox" id="tipToggle"> Tooltips</label></div>
+  <div class="ctx-item"><label>Pad Size <input type="range" id="padSizeSlider" min="28" max="56" value="42"></label></div>
+  <div class="ctx-item"><label>Accent <input type="color" id="accentPicker" value="#5b8cff"></label></div>
+</div>
+
+<script>
+'use strict';
+
+/* ============================================================
+   CONSTANTS & MAPPING TABLES
+   ============================================================ */
+const mkey = (r,c) => 11 + c*11 + r; // step pad key index
+
+const attrLabels = ['VEL','PIT','LEN','STR','POS','DIR','AMT','GRV','MCC','MCH'];
+const mutLabels  = ['TGGL','SOLO','CLR','RND','FLT','RMX','EFF','ZOM','CPY','PST'];
+
+const zoomDefs = [
+  {k:218,l:'GRID'},{k:219,l:'PAGE'},{k:220,l:'TRK'},{k:227,l:'STEP'},
+  {k:228,l:'MAP'},{k:229,l:'PLAY'}
+];
+const scaleDefs = [
+  {k:246,l:'MAJ'},{k:247,l:'MIN'},{k:248,l:'DIM'},{k:249,l:'CHR'},
+  {k:243,l:'MY'},{k:244,l:'PEN'},{k:245,l:'WHL'}
+];
+const noteDefs = [
+  {k:212,l:'C'},{k:211,l:'C#'},{k:210,l:'D'},{k:209,l:'D#'},
+  {k:208,l:'E'},{k:217,l:'F'},{k:225,l:'F#'},{k:226,l:'G'},
+  {k:235,l:'G#'},{k:236,l:'A'},{k:237,l:'A#'},{k:238,l:'B'},
+  {k:239,l:'C\u2191'}
+];
+const mixDefs = [
+  {k:21,l:'MIX'},{k:43,l:'ATR'},{k:54,l:'VOL'},{k:65,l:'PAN'},
+  {k:76,l:'MOD'},{k:87,l:'EXP'},{k:98,l:'U0'},{k:109,l:'U1'},
+  {k:120,l:'U2'},{k:131,l:'U3'},{k:142,l:'U4'},{k:153,l:'U5'}
+];
+const chordDefs = [
+  {k:258,l:'0'},{k:257,l:'1'},{k:256,l:'2'},{k:255,l:'3'},
+  {k:254,l:'4'},{k:253,l:'5'},{k:252,l:'6'}
+];
+const bigKnobDefs = [
+  {k:201,l:'1'},{k:200,l:'2'},{k:199,l:'3'},{k:198,l:'4'},{k:197,l:'5'},
+  {k:207,l:'6'},{k:206,l:'7'},{k:216,l:'8'},{k:215,l:'9'},
+  {k:224,l:'100'},{k:233,l:'200'}
+];
+const chainDefs = [
+  {k:205,l:'CH1'},{k:204,l:'CH2'},{k:203,l:'CH3'},{k:202,l:'CH4'},
+  {k:213,l:'CHN'},{k:214,l:'FLW'}
+];
+
+/* Rotary indices: left rotary for track row r = 20-r, right = r+1 */
+const encRows = [];
+for(let r=9;r>=0;r--){
+  encRows.push({track:r, leftRot:20-r, rightRot:r+1, label:attrLabels[r]});
+}
+
+/* ============================================================
+   MIR LED REGISTRY
+   Maps key index -> [set, row, bit] for MIR lookup
+   ============================================================ */
+const mirMap = {};
+
+// Step pads: key = 11 + col*11 + row
+for(let row=0;row<10;row++){
+  for(let col=0;col<16;col++){
+    const key = mkey(row,col);
+    mirMap[key] = col<8 ? [0,row,col] : [1,row,col-8];
+  }
+}
+// Mix strip
+const mixKeys = [21,32,43,54,65,76,87,98,109,120,131,142,153,164,175,186];
+const mixMir = [[0,10,0],[0,10,1],[0,10,2],[0,10,3],[0,10,4],[0,10,5],[0,10,6],[0,10,7],
+                [1,10,0],[1,10,1],[1,10,2],[1,10,3],[1,10,4],[1,10,5],[1,10,6],[1,10,7]];
+mixKeys.forEach((k,i)=>{ mirMap[k]=mixMir[i]; });
+
+// Attribute buttons (keys 1-10)
+// lbt-1..5 -> ml(0,11,4-i) for i=0..4 ; lbt-6..10 -> ml(0,12,5-i) for i=0..4
+for(let i=0;i<5;i++){ mirMap[i+1]=[0,11,4-i]; mirMap[i+6]=[0,12,5-i]; }
+
+// Mutator buttons (keys 187-196)
+for(let i=0;i<5;i++){ mirMap[187+i]=[1,11,i+1]; mirMap[192+i]=[1,12,i]; }
+
+// Circle buttons
+const circleMir = {
+  225:[0,15,0],217:[0,15,1],208:[0,15,2],209:[0,15,3],210:[0,15,4],211:[0,15,5],212:[0,15,6],221:[0,15,7],
+  222:[1,15,0],230:[1,15,1],239:[1,15,2],238:[1,15,3],237:[1,15,4],236:[1,15,5],235:[1,15,6],226:[1,15,7],
+  218:[0,16,0],219:[0,16,1],227:[0,16,2],228:[0,16,3],220:[0,16,4],229:[0,16,5],
+  231:[1,14,0],232:[1,14,1],241:[1,14,2],240:[1,14,3],250:[1,14,4],249:[1,14,5],248:[1,14,6],247:[1,14,7],
+  201:[0,14,0],205:[0,14,4],204:[0,14,3],203:[0,14,2],202:[0,14,1],213:[0,14,5],214:[0,14,6],223:[0,14,7],
+  215:[0,13,0],216:[0,13,1],206:[0,13,2],207:[0,13,3],197:[0,13,4],198:[0,13,5],199:[0,13,6],200:[0,13,7],
+  246:[1,13,0],245:[1,13,1],244:[1,13,2],243:[1,13,3],242:[1,13,4],234:[1,13,5],233:[1,13,6],224:[1,13,7],
+  251:[1,16,7],252:[1,16,6],253:[1,16,5],254:[1,16,4],255:[1,16,3],256:[1,16,2],257:[1,16,1],258:[1,16,0]
+};
+Object.assign(mirMap, circleMir);
+
+/* ============================================================
+   WEBSOCKET
+   ============================================================ */
+let ws = null;
+let mirData = new Uint8Array(170);
+
+function connect(){
+  const port = parseInt(location.port||'80')+1;
+  ws = new WebSocket('ws://'+location.hostname+':'+port);
+  ws.onopen = ()=>{ setConn(true); };
+  ws.onclose = ()=>{ setConn(false); setTimeout(connect,1000); };
+  ws.onerror = ()=>{ ws.close(); };
+  ws.onmessage = (e)=>{
+    const m = JSON.parse(e.data);
+    handleMessage(m.address, m.args);
+  };
+}
+function setConn(on){
+  document.getElementById('connDot').classList.toggle('on',on);
+  document.getElementById('connText').textContent = on?'Connected':'Reconnecting...';
+  document.getElementById('ctxStatus').textContent = on?'\u25CF Connected':'\u25CB Reconnecting...';
+  document.getElementById('ctxStatus').style.color = on?'var(--led-green)':'var(--txt-2)';
+}
+function send(m){ if(ws&&ws.readyState===WebSocket.OPEN) ws.send(JSON.stringify(m)); }
+function skey(i,p){ send({type:'key',index:i,press:p}); }
+function srot(i,d){ send({type:'rotary',index:i,direction:d}); }
+
+function handleMessage(addr,args){
+  if(addr==='/mir'){
+    const h = args[0];
+    if(typeof h==='string'){
+      for(let i=0;i<170;i++) mirData[i]=parseInt(h.substr(i*2,2),16);
+      updateAllLEDs();
+    }
+  } else if(addr==='/transport'){
+    const playing = args[0]===1||args[0]===true;
+    document.getElementById('tb-play').classList.toggle('active',playing);
+  }
+}
+
+/* ============================================================
+   MIR DECODE & LED UPDATE
+   ============================================================ */
+function mb(s,r,c){ return mirData[s*85+r*5+c]; }
+function ml(s,r,b){ return ((mb(s,r,1)>>b&1)?2:0) | ((mb(s,r,2)>>b&1)?4:0); }
+
+// color value: 0=off,2=red,4=green,6=yellow
+const ledColorMap = {
+  0:'', 2:'led-red', 4:'led-green', 6:'led-yellow'
+};
+const padColorMap = {
+  0:'', 2:'on-red', 4:'on-green', 6:'on-yellow'
+};
+
+// Registry of elements to update: {key -> [ledEl, isPad]}
+const ledRegistry = {};
+
+function registerLed(key, ledEl, isPad){
+  if(!ledEl) return;
+  if(!ledRegistry[key]) ledRegistry[key]=[];
+  ledRegistry[key].push({el:ledEl,isPad});
+}
+
+function updateAllLEDs(){
+  for(const keyStr in ledRegistry){
+    const key = parseInt(keyStr);
+    const coord = mirMap[key];
+    if(!coord) continue;
+    const val = ml(coord[0],coord[1],coord[2]);
+    const entries = ledRegistry[key];
+    for(const e of entries){
+      const cls = e.isPad ? padColorMap[val] : ledColorMap[val];
+      e.el.className = e.el.className.replace(/\s*(on-red|on-green|on-yellow|led-red|led-green|led-yellow|led-off)/g,'').trim();
+      if(cls) e.el.classList.add(cls);
+      else e.el.classList.add('led-off');
+    }
+  }
+  updateContextUI();
+}
+
+/* Dynamic context UI: zoom indicator, clock mode, record LED */
+const zoomKeyToName = {218:'GRID',219:'PAGE',220:'TRK',227:'STEP',228:'MAP',229:'PLAY'};
+function updateContextUI(){
+  // Zoom indicator — find which zoom button LED is lit
+  for(const k in zoomKeyToName){
+    const coord = mirMap[k];
+    if(coord && ml(coord[0],coord[1],coord[2])>0){
+      document.getElementById('zoomName').textContent = zoomKeyToName[k];
+      break;
+    }
+  }
+  // Clock mode from BK200 (key 233)
+  const bk200c = mirMap[233];
+  if(bk200c){
+    const v = ml(bk200c[0],bk200c[1],bk200c[2]);
+    const modes = {0:'CLK: OFF',2:'CLK: MASTER',4:'CLK: SLAVE',6:'CLK: SLAVE'};
+    document.getElementById('clockMode').textContent = modes[v]||'CLK: OFF';
+  }
+}
+
+/* ============================================================
+   KNOB (SVG) — drag vertical to turn
+   ============================================================ */
+const knobDrag = {active:false, y:0, acc:0, idx:-1};
+
+function createKnob(idx){
+  const wrap = document.createElement('div');
+  wrap.className = 'knob-wrap';
+  wrap.innerHTML = `
+    <svg viewBox="0 0 40 40">
+      <defs>
+        <radialGradient id="knobGrad-${idx}" cx="38%" cy="32%">
+          <stop offset="0%" stop-color="#3a3a50"/>
+          <stop offset="60%" stop-color="#222234"/>
+          <stop offset="100%" stop-color="#15151f"/>
+        </radialGradient>
+      </defs>
+      <path class="knob-arc-bg" d="M 7 30 A 14 14 0 1 1 33 30"/>
+      <path class="knob-arc" id="karc-${idx}" d="M 7 30 A 14 14 0 1 1 33 30"
+        stroke-dasharray="66" stroke-dashoffset="33"/>
+      <circle class="knob-body" cx="20" cy="20" r="11" fill="url(#knobGrad-${idx})"/>
+      <line class="knob-tick" id="ktick-${idx}" x1="20" y1="20" x2="20" y2="11"
+        transform="rotate(-135 20 20)"/>
+    </svg>`;
+  let rotation = -135;
+  function tick(dir){
+    srot(idx, dir);
+    rotation += dir===2 ? 18 : -18;
+    if(rotation>135) rotation=135;
+    if(rotation<-135) rotation=-135;
+    const tick = wrap.querySelector('.knob-tick');
+    tick.setAttribute('transform','rotate('+rotation+' 20 20)');
+    const arc = wrap.querySelector('.knob-arc');
+    const pct = (rotation+135)/270;
+    arc.setAttribute('stroke-dashoffset', String(66*(1-pct*0.75)));
+  }
+  wrap.addEventListener('wheel',(e)=>{
+    e.preventDefault();
+    tick(e.deltaY<0?2:1);
+  },{passive:false});
+  wrap.addEventListener('mousedown',(e)=>{
+    e.preventDefault();
+    knobDrag.active=true; knobDrag.y=e.clientY; knobDrag.acc=0; knobDrag.idx=idx;
+    knobDrag.tick=tick; wrap.style.cursor='grabbing';
+  });
+  wrap.addEventListener('touchstart',(e)=>{
+    e.preventDefault();
+    const t=e.touches[0];
+    knobDrag.active=true; knobDrag.y=t.clientY; knobDrag.acc=0; knobDrag.idx=idx;
+    knobDrag.tick=tick;
+  },{passive:false});
+  wrap.addEventListener('touchmove',(e)=>{
+    if(!knobDrag.active||knobDrag.idx!==idx) return;
+    e.preventDefault();
+    const t=e.touches[0];
+    const dy = knobDrag.y - t.clientY;
+    while(dy-knobDrag.acc>=10){ knobDrag.acc+=10; knobDrag.tick(2); }
+    while(dy-knobDrag.acc<=-10){ knobDrag.acc-=10; knobDrag.tick(1); }
+  },{passive:false});
+  wrap.addEventListener('touchend',()=>{ knobDrag.active=false; knobDrag.idx=-1; });
+  return wrap;
+}
+
+document.addEventListener('mousemove',(e)=>{
+  if(!knobDrag.active) return;
+  const dy = knobDrag.y - e.clientY;
+  while(dy-knobDrag.acc>=10){ knobDrag.acc+=10; knobDrag.tick(2); }
+  while(dy-knobDrag.acc<=-10){ knobDrag.acc-=10; knobDrag.tick(1); }
+});
+document.addEventListener('mouseup',()=>{
+  if(knobDrag.active){ knobDrag.active=false; knobDrag.idx=-1; }
+});
+
+/* ============================================================
+   INPUT BINDING — keys with hold support
+   ============================================================ */
+const heldKeys = new Map();
+
+function bindKey(el, key){
+  if(!el) return;
+  el.addEventListener('contextmenu',e=>e.preventDefault());
+  el.addEventListener('mousedown',(e)=>{
+    if(e.ctrlKey||e.metaKey||e.button===2){
+      e.preventDefault();
+      if(heldKeys.has(key)){ skey(key,false); el.classList.remove('held'); heldKeys.delete(key); }
+      else{ skey(key,true); el.classList.add('held'); heldKeys.set(key,el); }
+      return;
+    }
+    skey(key,true);
+  });
+  el.addEventListener('mouseup',()=>{
+    if(heldKeys.has(key)) return;
+    skey(key,false);
+    releaseAllHeld();
+  });
+  // Touch
+  el.addEventListener('touchstart',(e)=>{
+    e.preventDefault();
+    skey(key,true);
+  },{passive:false});
+  el.addEventListener('touchend',(e)=>{
+    e.preventDefault();
+    skey(key,false);
+  });
+}
+
+function releaseAllHeld(){
+  heldKeys.forEach((el,k)=>{ skey(k,false); el.classList.remove('held'); });
+  heldKeys.clear();
+}
+document.addEventListener('mouseup',releaseAllHeld);
+
+/* ============================================================
+   STEP PAD — toggle + drag-paint + touch
+   ============================================================ */
+let dragPaint = null;
+
+function bindStepPad(el, key){
+  el.addEventListener('contextmenu',e=>e.preventDefault());
+  el.addEventListener('mousedown',(e)=>{
+    if(e.ctrlKey||e.metaKey||e.button===2){
+      e.preventDefault();
+      if(heldKeys.has(key)){ skey(key,false); el.classList.remove('held'); heldKeys.delete(key); }
+      else{ skey(key,true); el.classList.add('held'); heldKeys.set(key,el); }
+      return;
+    }
+    e.preventDefault();
+    dragPaint = {visited:new Set()};
+    skey(key,true); skey(key,false);
+    dragPaint.visited.add(el);
+  });
+  el.addEventListener('mouseenter',()=>{
+    if(!dragPaint||dragPaint.visited.has(el)) return;
+    skey(key,true); skey(key,false);
+    dragPaint.visited.add(el);
+  });
+  el.addEventListener('touchstart',(e)=>{
+    e.preventDefault();
+    dragPaint = {visited:new Set()};
+    skey(key,true); skey(key,false);
+    dragPaint.visited.add(el);
+  },{passive:false});
+  el.addEventListener('touchmove',(e)=>{
+    if(!dragPaint) return;
+    e.preventDefault();
+    const t = e.touches[0];
+    const tgt = document.elementFromPoint(t.clientX,t.clientY);
+    const pad = tgt ? tgt.closest('.pad') : null;
+    if(pad && !dragPaint.visited.has(pad)){
+      const k = parseInt(pad.dataset.key);
+      if(k!==undefined){ skey(k,true); skey(k,false); }
+      dragPaint.visited.add(pad);
+    }
+  },{passive:false});
+}
+document.addEventListener('mouseup',()=>{ dragPaint=null; });
+document.addEventListener('touchend',()=>{ dragPaint=null; });
+document.addEventListener('touchcancel',()=>{ dragPaint=null; });
+
+/* ============================================================
+   BUILD UI
+   ============================================================ */
+
+// --- Step header ---
+(function(){
+  const hdr = document.getElementById('stepHeader');
+  for(let c=0;c<16;c++){
+    const sn = document.createElement('div');
+    sn.className='step-num'; sn.textContent = c+1;
+    hdr.appendChild(sn);
+  }
+})();
+
+// --- Track rows ---
+(function(){
+  const panel = document.getElementById('gridPanel');
+  for(let r=9;r>=0;r--){
+    const row = document.createElement('div');
+    row.className = 'track-row';
+
+    // Track number
+    const lbl = document.createElement('div');
+    lbl.className='track-label';
+    lbl.textContent = r;
+    lbl.style.color = 'var(--track-'+r+')';
+    row.appendChild(lbl);
+
+    // Attribute button
+    const acell = document.createElement('div');
+    acell.className='attr-cell';
+    const abtn = document.createElement('div');
+    abtn.className='attr-btn';
+    abtn.style.borderLeft = '3px solid var(--track-'+r+')';
+    abtn.innerHTML = attrLabels[r]+'<span class="aled"></span>';
+    const attrKey = r+1;
+    abtn.dataset.key = attrKey;
+    bindKey(abtn, attrKey);
+    const aledInner = abtn.querySelector('.aled');
+    registerLed(attrKey, aledInner, false);
+    acell.appendChild(abtn);
+    row.appendChild(acell);
+
+    // 16 step pads
+    const pcell = document.createElement('div');
+    pcell.className='pad-cell';
+    for(let c=0;c<16;c++){
+      const pad = document.createElement('div');
+      pad.className='pad';
+      pad.dataset.key = mkey(r,c);
+      pad.style.borderLeft = '2px solid var(--track-'+r+')';
+      // Group separator every 4 steps
+      if(c%4===0 && c>0){
+        pad.style.marginLeft = '4px';
+      }
+      bindStepPad(pad, mkey(r,c));
+      registerLed(mkey(r,c), pad, true);
+      pcell.appendChild(pad);
+    }
+    row.appendChild(pcell);
+
+    // Mutator button
+    const mcell = document.createElement('div');
+    mcell.className='mut-cell';
+    const mbtn = document.createElement('div');
+    mbtn.className='mut-btn';
+    const mutKey = 187+r;
+    mbtn.innerHTML = mutLabels[r]+'<span class="mled"></span>';
+    mbtn.dataset.key = mutKey;
+    bindKey(mbtn, mutKey);
+    const mledInner = mbtn.querySelector('.mled');
+    registerLed(mutKey, mledInner, false);
+    mcell.appendChild(mbtn);
+    row.appendChild(mcell);
+
+    panel.appendChild(row);
+  }
+})();
+
+// --- Zoom modes ---
+(function(){
+  const c = document.getElementById('zoomModes');
+  zoomDefs.forEach(z=>{
+    const b = document.createElement('div');
+    b.className='zoom-btn';
+    b.innerHTML = z.l+'<span class="zled"></span>';
+    b.dataset.key = z.k;
+    bindKey(b, z.k);
+    registerLed(z.k, b.querySelector('.zled'), false);
+    c.appendChild(b);
+  });
+})();
+
+// --- Scale modes ---
+(function(){
+  const c = document.getElementById('scaleModes');
+  scaleDefs.forEach(s=>{
+    const b = document.createElement('div');
+    b.className='scale-btn';
+    b.innerHTML = s.l+'<span class="sled"></span>';
+    b.dataset.key = s.k;
+    bindKey(b, s.k);
+    registerLed(s.k, b.querySelector('.sled'), false);
+    c.appendChild(b);
+  });
+})();
+
+// --- Scale control (SEL/MOD/CAD) + transport extras ---
+document.querySelectorAll('[data-key]').forEach(el=>{
+  if(el.classList.contains('scale-btn')||el.classList.contains('mx-btn')||el.classList.contains('bk-btn')){
+    const k = parseInt(el.dataset.key);
+    if(k && !el.dataset.bound){
+      bindKey(el, k);
+      el.dataset.bound='1';
+      const led = el.querySelector('.sled,.mled,.bled');
+      if(led) registerLed(k, led, false);
+    }
+  }
+});
+
+// --- Note grid ---
+(function(){
+  const c = document.getElementById('noteGrid');
+  noteDefs.forEach(n=>{
+    const b = document.createElement('div');
+    b.className='note-btn';
+    if(n.l.indexOf('#')>=0||n.l.indexOf('\u266f')>=0) b.classList.add('sharp');
+    b.innerHTML = n.l+'<span class="sled"></span>';
+    b.dataset.key = n.k;
+    bindKey(b, n.k);
+    registerLed(n.k, b.querySelector('.sled'), false);
+    c.appendChild(b);
+  });
+})();
+
+// --- Encoders (right sidebar) ---
+(function(){
+  const list = document.getElementById('encList');
+  encRows.forEach(row=>{
+    const r = document.createElement('div');
+    r.className='enc-row';
+    // Left knob
+    const lk = createKnob(row.leftRot);
+    // Right knob
+    const rk = createKnob(row.rightRot);
+    const lbl = document.createElement('div');
+    lbl.className='enc-lbl';
+    lbl.style.color = 'var(--track-'+row.track+')';
+    lbl.textContent = row.track;
+    r.appendChild(lbl);
+    r.appendChild(lk);
+    r.appendChild(rk);
+    // Attribute label for right knob
+    const albl = document.createElement('div');
+    albl.style.fontSize='7px'; albl.style.color='var(--txt-2)';
+    albl.style.width='22px'; albl.textContent = row.label;
+    r.appendChild(albl);
+    list.appendChild(r);
+  });
+})();
+
+// --- Tempo knob (top bar) ---
+(function(){
+  const c = document.getElementById('tpo-knob');
+  c.style.display='flex'; c.style.alignItems='center'; c.style.justifyContent='center';
+  const k = createKnob(0); // TPO = rotary 0
+  c.appendChild(k);
+})();
+
+// --- Mix strip ---
+(function(){
+  const c = document.getElementById('mixStrip');
+  mixDefs.forEach(m=>{
+    const b = document.createElement('div');
+    b.className='mx-btn';
+    b.innerHTML = m.l+'<span class="mled"></span>';
+    b.dataset.key = m.k;
+    bindKey(b, m.k);
+    registerLed(m.k, b.querySelector('.mled'), false);
+    c.appendChild(b);
+  });
+})();
+
+// --- Chord bank ---
+(function(){
+  const c = document.getElementById('chordBank');
+  chordDefs.forEach(ch=>{
+    const b = document.createElement('div');
+    b.className='bk-btn';
+    b.innerHTML = ch.l+'<span class="bled"></span>';
+    b.dataset.key = ch.k;
+    bindKey(b, ch.k);
+    registerLed(ch.k, b.querySelector('.bled'), false);
+    c.appendChild(b);
+  });
+})();
+
+// --- Big knob bank ---
+(function(){
+  const c = document.getElementById('bigKnobBank');
+  bigKnobDefs.forEach(bk=>{
+    const b = document.createElement('div');
+    b.className='bk-btn';
+    b.innerHTML = bk.l+'<span class="bled"></span>';
+    b.dataset.key = bk.k;
+    bindKey(b, bk.k);
+    registerLed(bk.k, b.querySelector('.bled'), false);
+    c.appendChild(b);
+  });
+})();
+
+// --- Chain bank ---
+(function(){
+  const c = document.getElementById('chainBank');
+  chainDefs.forEach(ch=>{
+    const b = document.createElement('div');
+    b.className='bk-btn';
+    b.innerHTML = ch.l+'<span class="bled"></span>';
+    b.dataset.key = ch.k;
+    bindKey(b, ch.k);
+    registerLed(ch.k, b.querySelector('.bled'), false);
+    c.appendChild(b);
+  });
+})();
+
+/* ============================================================
+   TRANSPORT BUTTONS (top bar)
+   ============================================================ */
+(function(){
+  // Play = P1 (241), Stop = STP (231), Pause = PSE (232), Record = REC (223)
+  document.getElementById('tb-play').addEventListener('click',()=>{ skey(241,true); skey(241,false); });
+  document.getElementById('tb-stop').addEventListener('click',()=>{ skey(231,true); skey(231,false); });
+  document.getElementById('tb-pause').addEventListener('click',()=>{ skey(232,true); skey(232,false); });
+  document.getElementById('tb-rec').addEventListener('click',()=>{ skey(223,true); skey(223,false); });
+})();
+
+/* ============================================================
+   TEMPO TAP + manual entry
+   ============================================================ */
+(function(){
+  const tapBtn = document.getElementById('tapBtn');
+  const disp = document.getElementById('tempoDisplay');
+  let taps = [];
+  tapBtn.addEventListener('click',()=>{
+    const now = Date.now();
+    taps = taps.filter(t=>now-t<3000);
+    taps.push(now);
+    if(taps.length>=2){
+      const avg = (taps[taps.length-1]-taps[0])/(taps.length-1);
+      const bpm = Math.round(60000/avg);
+      if(bpm>=10&&bpm<=199){
+        disp.textContent = bpm;
+        send({type:'tempo',bpm:bpm});
+      }
+    }
+  });
+  // Click tempo display to type value
+  disp.style.cursor='pointer';
+  disp.title='Click to set BPM';
+  disp.addEventListener('click',()=>{
+    const v = prompt('Enter BPM (10-199):', disp.textContent);
+    if(v!==null){
+      const bpm = parseInt(v);
+      if(bpm>=10&&bpm<=199){ disp.textContent=bpm; send({type:'tempo',bpm:bpm}); }
+    }
+  });
+})();
+
+/* ============================================================
+   KEYBOARD SHORTCUTS
+   ============================================================ */
+document.addEventListener('keydown',(e)=>{
+  if(e.target.tagName==='INPUT') return;
+  if(e.code==='Space'){ e.preventDefault(); skey(241,true); skey(241,false); }
+  else if(e.key==='s'||e.key==='S'){ skey(231,true); skey(231,false); }
+  else if(e.key==='r'||e.key==='R'){ skey(223,true); skey(223,false); }
+  else if(e.key==='p'||e.key==='P'){ skey(232,true); skey(232,false); }
+});
+
+/* ============================================================
+   CONTEXT MENU / SETTINGS
+   ============================================================ */
+(function(){
+  const ctx = document.getElementById('ctxMenu');
+  const gear = document.getElementById('gearBtn');
+  gear.addEventListener('click',(e)=>{
+    e.stopPropagation();
+    ctx.style.display = ctx.style.display==='flex'?'none':'flex';
+    const r = gear.getBoundingClientRect();
+    ctx.style.left = Math.min(r.left-180, window.innerWidth-220)+'px';
+    ctx.style.top = (r.bottom+6)+'px';
+  });
+  document.addEventListener('click',(e)=>{
+    if(!ctx.contains(e.target)&&e.target!==gear) ctx.style.display='none';
+  });
+
+  // Pad size
+  const ps = document.getElementById('padSizeSlider');
+  const saved = localStorage.getItem('ng_padSize');
+  if(saved){ ps.value=saved; applyPadSize(saved); }
+  function applyPadSize(v){
+    document.documentElement.style.setProperty('--pad-size', v+'px');
+  }
+  ps.addEventListener('input',(e)=>{ applyPadSize(e.target.value); localStorage.setItem('ng_padSize',e.target.value); });
+
+  // Accent color
+  const ap = document.getElementById('accentPicker');
+  const savedA = localStorage.getItem('ng_accent');
+  if(savedA){ ap.value=savedA; applyAccent(savedA); }
+  function applyAccent(v){
+    document.documentElement.style.setProperty('--accent', v);
+    document.documentElement.style.setProperty('--accent-glow', v+'73');
+  }
+  ap.addEventListener('input',(e)=>{ applyAccent(e.target.value); localStorage.setItem('ng_accent',e.target.value); });
+
+  // Tooltips
+  document.getElementById('tipToggle').addEventListener('change',function(){
+    document.querySelectorAll('[data-key]').forEach(el=>{
+      el.title = this.checked ? (el.textContent||'') : '';
+    });
+  });
+})();
+
+/* ============================================================
+   INIT
+   ============================================================ */
+connect();
+// Initial LED update will fire when first MIR frame arrives.
+// Also set initial LED off state.
+setTimeout(updateAllLEDs, 500);
+
+</script>
+</body>
+</html>

@@ -107,6 +107,29 @@ static const char *winmm_in_device_name(int device_id) {
     return "(unknown)";
 }
 
+/* Enumerate available devices for the in-process GUI picker.
+ * idx 0,1,2,...; returns the device id (0..N-1) and fills name,
+ * or -1 when idx runs past the end. */
+int midi_enum_devices(int is_input, int idx, char *name, int name_len) {
+    if (is_input) {
+        unsigned int n = midiInGetNumDevs();
+        MIDIINCAPSA caps;
+        if (idx < 0 || (unsigned int)idx >= n) return -1;
+        if (midiInGetDevCapsA(idx, &caps, sizeof(caps)) != MMSYSERR_NOERROR) return -1;
+        strncpy(name, caps.szPname, name_len - 1);
+        name[name_len - 1] = '\0';
+        return idx;
+    } else {
+        unsigned int n = midiOutGetNumDevs();
+        MIDIOUTCAPSA caps;
+        if (idx < 0 || (unsigned int)idx >= n) return -1;
+        if (midiOutGetDevCapsA(idx, &caps, sizeof(caps)) != MMSYSERR_NOERROR) return -1;
+        strncpy(name, caps.szPname, name_len - 1);
+        name[name_len - 1] = '\0';
+        return idx;
+    }
+}
+
 /* ============================================================ */
 /* Runtime device selection (callable from OSC commands)        */
 /* ============================================================ */

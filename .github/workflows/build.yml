@@ -15,8 +15,8 @@ concurrency:
 jobs:
   # ---------------------------------------------------------------------------
   # 1. Fast checks on every push / PR.
-  #    Rust only — the C engine has no automated test suite (manual scripts in
-  #    tests/ need a running engine + MIDI loopback).
+  #    Rust workspace (engine FFI crate + gui + cli) — the C engine has no
+  #    automated test suite (manual scripts in tests/ need a running engine).
   # ---------------------------------------------------------------------------
   check:
     name: Lint + test
@@ -33,12 +33,8 @@ jobs:
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: |
-            ui
-            cli_ui
 
-      - name: Install Linux build deps (ALSA + eframe/egui X11/Wayland headers)
+      - name: Install Linux build deps (ALSA for the engine, X11/Wayland for egui)
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential cmake pkg-config libasound2-dev \
@@ -47,38 +43,21 @@ jobs:
 
       # fmt is advisory (pre-existing diffs). clippy shows lints without
       # -D warnings so it doesn't error on intentional patterns.
-      - name: cargo fmt --check (ui)
+      - name: cargo fmt --check
         continue-on-error: true
-        working-directory: ui
         run: cargo fmt --all -- --check
 
-      - name: cargo fmt --check (cli_ui)
-        continue-on-error: true
-        working-directory: cli_ui
-        run: cargo fmt --all -- --check
+      - name: cargo clippy
+        run: cargo clippy --workspace --all-targets
 
-      - name: cargo clippy (ui)
-        working-directory: ui
-        run: cargo clippy --all-targets
-
-      - name: cargo clippy (cli_ui)
-        working-directory: cli_ui
-        run: cargo clippy --all-targets
-
-      - name: cargo test (ui)
-        working-directory: ui
-        run: cargo test
-
-      - name: cargo test (cli_ui)
-        working-directory: cli_ui
-        run: cargo test
+      - name: cargo test
+        run: cargo test --workspace
 
   # ---------------------------------------------------------------------------
-  # 2. Full build — Linux, Windows. No macOS: the C engine is ALSA/winmm only.
-  #    Each entry builds the C engine (Octopus + Nemo variants) and both Rust
-  #    bridges (octopus_ui embeds the HTML at compile time via include_str!).
-  #    dist/ also carries the HTML files — cli_ui reads them from its cwd at
-  #    runtime, so they ship next to the binaries.
+  # 2. Full build — Linux, Windows. No macOS: the engine is ALSA/winmm only.
+  #    Each entry builds the C engine (standalone binary + static lib) and the
+  #    Rust workspace (octopus_gui, octopus_cli — engine hosted in-process,
+  #    HTML control surface embedded at compile time).
   # ---------------------------------------------------------------------------
   build:
     name: Build (${{ matrix.name }})
@@ -98,68 +77,63 @@ jobs:
         with:
           submodules: recursive
 
+      # The C engine objects are MinGW-built; the Rust binaries link them
+      # statically, so the gnu Rust target is required on Windows.
       - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: |
-            ui
-            cli_ui
+          targets: x86_64-pc-windows-gnu
+      - uses: Swatinem/rust-cache@v2
 
-      # ----- C engine -----------------------------------------------------
-      - name: Install Linux build deps (ALSA)
+      - name: Install Linux build deps (ALSA + egui X11/Wayland headers)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libasound2-dev
+          sudo apt-get install -y build-essential cmake pkg-config libasound2-dev \
+            libxcb1-dev libxrandr-dev libxinerama-dev libxcursor-dev \
+            libxi-dev libxext-dev libxkbcommon-dev libwayland-dev
 
-      # MSYS2 ucrt64 gcc is preinstalled on windows runners at C:\msys64.
-      # build_win.ps1 also auto-detects this path, but put it in PATH first
-      # so gcc is found before any other toolchain.
-      - name: Add MSYS2 ucrt64 to PATH
-        if: runner.os == 'Windows'
-        run: echo "C:\msys64\ucrt64\bin" >> $GITHUB_PATH
-        shell: bash
-
-      - name: Build C engine (Linux — Octopus + Nemo)
+      # ----- C engine (standalone) ----------------------------------------
+      - name: Build C engine (Linux)
         if: runner.os == 'Linux'
         run: |
           mkdir -p dist
-          make clean && make && cp build/octopus dist/
-          # Objects are shared between variants — clean in between, else the
-          # Nemo link reuses .o files compiled without -DNEMO.
-          make clean && make NEMO=1 && cp build/nemo dist/
+          make clean && make
+          cp build/octopus dist/
 
-      - name: Build C engine (Windows — Octopus + Nemo)
+      # MSYS2 ucrt64 gcc is preinstalled on windows runners at C:\msys64;
+      # build_win.ps1 auto-detects it.
+      - name: Build C engine (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
-          powershell -ExecutionPolicy Bypass -File build_win.ps1
+          powershell -ExecutionPolicy Bypass -File build_win.ps1 -Clean
           Copy-Item build\octopus.exe dist\
-          powershell -ExecutionPolicy Bypass -File build_win.ps1 -Clean -Nemo
-          Copy-Item build\nemo.exe dist\
 
-      # ----- Rust bridges ---------------------------------------------------
-      - name: Build octopus_ui (Rust UI launcher)
-        run: cargo build --release
-        working-directory: ui
+      # ----- Rust hosts (in-process engine; rebuilds liboctopus.a via build.rs)
+      - name: Build Rust binaries (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          cargo build --release
+          cp target/release/octopus_gui target/release/octopus_cli dist/
 
-      - name: Build cli_ui (Rust standalone bridge)
-        run: cargo build --release
-        working-directory: cli_ui
+      - name: Build Rust binaries (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cargo build --release --target x86_64-pc-windows-gnu
+          cp target/x86_64-pc-windows-gnu/release/octopus_gui.exe target/x86_64-pc-windows-gnu/release/octopus_cli.exe dist/
+        shell: bash
 
       - name: Stage dist (Linux)
         if: runner.os == 'Linux'
         run: |
-          cp ui/target/release/octopus_ui cli_ui/target/release/cli_ui dist/
-          cp web_gui.html web_gui_nemo.html dist/
-          strip dist/octopus dist/nemo
+          cp web_gui.html web_gui_modern.html dist/
+          strip dist/octopus dist/octopus_gui dist/octopus_cli
 
       - name: Stage dist (Windows)
         if: runner.os == 'Windows'
-        run: |
-          cp ui/target/release/octopus_ui.exe cli_ui/target/release/cli_ui.exe dist/
-          cp web_gui.html web_gui_nemo.html dist/
+        run: cp web_gui.html web_gui_modern.html dist/
+        shell: bash
 
       - name: Upload dist
         uses: actions/upload-artifact@v7

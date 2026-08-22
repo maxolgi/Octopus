@@ -10,11 +10,13 @@
  */
 
 #include "hal_linux.h"
+#include "engine_api.h"
 #ifndef _WIN32
 #include <signal.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <fcntl.h>
 #endif
 
 /* ============================================================ */
@@ -150,11 +152,15 @@ extern void* page_preview_step;
 /* MODE_OBJECT_SELECTION — tracks BIRDSEYE mode (normally set by Intr_KEY_GRID.h) */
 extern unsigned char MODE_OBJECT_SELECTION;
 
-/* save_state — defined in main_linux.c */
+/* save_state — defined in engine.c */
 extern void save_state(const char *filepath);
+extern char g_oct_state_path[];
 
 /* main_running — set to 0 by /octopus/quit to exit the main loop */
 extern volatile int main_running;
+
+/* g_oct_hosted — nonzero when running inside the Rust GUI/CLI host */
+extern int g_oct_hosted;
 
 /* Flash file persistence */
 extern void flash_file_save(const char *filepath);
@@ -283,7 +289,7 @@ static void handle_key_press(int keyNdx, int press) {
          * Also persist to disk so state survives restart. */
         if (keyNdx == 242 && G_zoom_level == OSC_ZOOM_GRID
             && MODE_OBJECT_SELECTION == OSC_BIRDSEYE && G_run_bit == 0) {
-            save_state("octopus_state.bin");
+            save_state(g_oct_state_path);
         }
     } else {
         G_pressed_keys[keyNdx] = 0;
@@ -409,7 +415,7 @@ static void osc_dispatch(const osc_message_t *msg) {
 
     /* /octopus/save — save state to octopus_state.bin (engine keeps running) */
     if (strcmp(msg->address, "/save") == 0) {
-        save_state("octopus_state.bin");
+        save_state(g_oct_state_path);
         return;
     }
 
@@ -426,10 +432,29 @@ static void osc_dispatch(const osc_message_t *msg) {
 #ifdef _WIN32
         /* Windows: no signal needed, main loop polls main_running */
 #else
-        kill(getpid(), SIGINT);  /* wake up sigwait in main thread */
+        /* Standalone: wake up sigwait in main thread.
+         * Hosted: never — the signal would kill the host process. */
+        if (!g_oct_hosted) kill(getpid(), SIGINT);
 #endif
         return;
     }
+}
+
+/* Parse and dispatch a raw OSC packet. Shared by the UDP server thread
+ * and the in-process injector oct_send_osc(). Thread-safe: takes the
+ * scheduler lock to protect firmware globals. */
+static void osc_dispatch_buffer(const unsigned char *buf, int len) {
+    osc_message_t msg;
+    if (osc_parse(buf, len, &msg) == 0) {
+        cyg_scheduler_lock();
+        osc_dispatch(&msg);
+        cyg_scheduler_unlock();
+    }
+}
+
+void oct_send_osc(const unsigned char *buf, int len) {
+    if (!buf || len <= 0 || len > 65536) return;
+    osc_dispatch_buffer(buf, len);
 }
 
 /* OSC server thread — receives UDP packets and dispatches */
@@ -478,29 +503,42 @@ static void *osc_thread_func(void *arg) {
 
     fprintf(stderr, "osc_server: listening on port %d\n", port);
 
+    /* Non-blocking socket + select() with timeout, so osc_server_stop()
+     * can shut the thread down deterministically (a blocking recvfrom
+     * cannot be woken reliably by closesocket() on Windows). */
+#ifdef _WIN32
+    {
+        u_long nb = 1;
+        ioctlsocket(osc_sockfd, FIONBIO, &nb);
+    }
+#else
+    {
+        int fl = fcntl(osc_sockfd, F_GETFL, 0);
+        fcntl(osc_sockfd, F_SETFL, fl | O_NONBLOCK);
+    }
+#endif
+
     struct sockaddr_in sender;
     socklen_t sender_len;
 
     while (osc_running) {
+        fd_set rfds;
+        struct timeval tv;
+        FD_ZERO(&rfds);
+        FD_SET(osc_sockfd, &rfds);
+        tv.tv_sec = 0;
+        tv.tv_usec = 200000; /* 200 ms poll */
+
+        int ready = select(osc_sockfd + 1, &rfds, NULL, NULL, &tv);
+        if (ready <= 0) continue;
+
         sender_len = sizeof(sender);
         ssize_t n = recvfrom(osc_sockfd, buf, sizeof(buf), 0,
                              (struct sockaddr *)&sender, &sender_len);
-        if (n < 0) {
-            if (OSC_ERRNO == OSC_EINTR) continue;
-            break;
-        }
+        if (n <= 0) continue;
 
-        if (n > 0) {
-            osc_render_update_target(&sender);
-        }
-
-        osc_message_t msg;
-        if (osc_parse(buf, n, &msg) == 0) {
-            /* Lock the scheduler to protect firmware globals */
-            cyg_scheduler_lock();
-            osc_dispatch(&msg);
-            cyg_scheduler_unlock();
-        }
+        osc_render_update_target(&sender);
+        osc_dispatch_buffer(buf, (int)n);
     }
 
     OSC_CLOSE(osc_sockfd);

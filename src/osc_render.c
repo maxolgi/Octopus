@@ -29,6 +29,32 @@
 static int render_sockfd = -1;
 static struct sockaddr_in render_addr;
 
+/* Hosted mode: when a frame callback is registered, packed OSC frames are
+ * delivered to the host (Rust GUI/CLI, in-process) instead of being sent
+ * over UDP. Set BEFORE osc_render_start(). */
+#include "engine_api.h"
+static oct_frame_cb_t render_frame_cb = NULL;
+
+void osc_render_set_callback(oct_frame_cb_t cb) {
+    render_frame_cb = cb;
+    /* If a UDP socket was already created, drop it — callback takes over. */
+    if (cb && render_sockfd >= 0) {
+        RENDER_CLOSE(render_sockfd);
+        render_sockfd = -1;
+    }
+}
+
+/* engine_api.h shim — same function, stable FFI name */
+void oct_set_frame_callback(oct_frame_cb_t cb) {
+    osc_render_set_callback(cb);
+}
+
+/* Ensure a UDP send socket exists (standalone path only — no callback). */
+static void render_socket_init(void) {
+    if (render_sockfd >= 0 || render_frame_cb) return;
+    osc_render_init("127.0.0.1", 9000);
+}
+
 /* Big-endian int32 writer */
 static void osc_write_int32(unsigned char *buf, int val) {
     buf[0] = (val >> 24) & 0xFF;
@@ -61,7 +87,9 @@ static void osc_send_blob(const char *address, const void *data, int datalen) {
     pos += datalen;
     while (pos % 4 != 0) buf[pos++] = 0;
 
-    if (render_sockfd >= 0) {
+    if (render_frame_cb) {
+        render_frame_cb(buf, pos);
+    } else if (render_sockfd >= 0) {
         sendto(render_sockfd, buf, pos, 0,
                (struct sockaddr *)&render_addr, sizeof(render_addr));
     }
@@ -85,7 +113,9 @@ static void osc_send_int(const char *address, int val) {
     osc_write_int32(buf + pos, val);
     pos += 4;
 
-    if (render_sockfd >= 0) {
+    if (render_frame_cb) {
+        render_frame_cb(buf, pos);
+    } else if (render_sockfd >= 0) {
         sendto(render_sockfd, buf, pos, 0,
                (struct sockaddr *)&render_addr, sizeof(render_addr));
     }
@@ -244,6 +274,11 @@ void osc_render_update_target(const struct sockaddr_in *new_addr) {
 }
 
 void osc_render_start(void) {
+    /* Standalone path: no callback registered — create the UDP send socket
+     * (127.0.0.1:9000) unless osc_render_init() already configured one.
+     * Hosted path: callback set, no socket at all. */
+    render_socket_init();
+
     render_running = 1;
     pthread_create(&render_pthread, NULL, render_thread_func, NULL);
 }

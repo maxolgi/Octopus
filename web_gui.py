@@ -33,6 +33,7 @@ WEB_WS_PORT = 8081
 
 HTML_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'web_gui.html')
 NEMO_HTML_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'web_gui_nemo.html')
+MODERN_HTML_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'web_gui_modern.html')
 
 # ============================================================
 # OSC pack/unpack
@@ -151,6 +152,8 @@ class HTTPHandler(http.server.BaseHTTPRequestHandler):
         html_file = HTML_FILE
         if self.path == '/nemo' or self.path == '/nemo/':
             html_file = NEMO_HTML_FILE
+        elif self.path == '/modern' or self.path == '/modern/':
+            html_file = MODERN_HTML_FILE
         elif self.path != '/' and self.path != '/index.html':
             self.send_response(404)
             self.end_headers()

@@ -109,53 +109,42 @@ aconnect <clock_source>:<port> <octopus_client>:2
 
 ## Web GUI
 
-There are **three interchangeable web GUI bridges**, all serving the same HTML
-control surface (`web_gui.html` / `web_gui_nemo.html`) on the same ports
-(HTTP 8080, WebSocket 8081, OSC 8000/9000). Only one should be running at a
-time. They differ only in runtime dependencies and whether they also launch the
-engine:
+The engine can be driven from a browser-based control surface in two ways:
 
-| Bridge | Language | Launches engine? | HTML files | Path |
-|---|---|---|---|---|
-| **Rust UI launcher** | Rust (egui) | Yes | Bundled in binary | [`ui/`](ui/README.md) |
-| **Rust standalone bridge** | Rust | No | Reads from disk | [`cli_ui/`](cli_ui/README.md) |
-| **Python bridge** | Python | No | Reads from disk | `web_gui.py` |
+| Host | Type | Engine location | HTML files |
+|---|---|---|---|
+| **`octopus_gui`** | Native desktop app (egui) with MIDI device picker | In-process (statically linked) | Embedded at compile time |
+| **`octopus_cli`** | Headless CLI | In-process (statically linked) | Embedded at compile time |
+| `web_gui.py` | Python bridge (legacy) | Separate process (`./build/octopus`) | Reads from disk |
 
-### Rust UI launcher — `ui/` → `octopus_ui`
-
-Native desktop app with a MIDI device picker. Launches the engine automatically
-and embeds the HTML control surface (no external files needed). See
-[`ui/README.md`](ui/README.md).
+Both Rust hosts are built from the same Cargo workspace (`engine/`, `gui/`,
+`cli/`) and share one code path: the `octopus-engine` crate hosts the C engine
+in-process (no subprocess, no OSC UDP loopback on port 9000), serves the HTML
+control surface on port 8080 and bridges WebSocket ↔ engine directly.
 
 ```bash
-cd ui && cargo build --release
-./ui/target/release/octopus_ui
-# Or headless:
-./ui/target/release/octopus_ui --nogui --variant octopus
-```
+# Requires gcc + libasound2-dev (the build compiles the C engine into
+# build/liboctopus.a automatically via engine/build.rs)
+cargo build --release
+./target/release/octopus_gui        # desktop app: pick MIDI ports, Start
+./target/release/octopus_cli        # headless: engine + web server
 
-### Rust standalone bridge — `cli_ui/` → `cli_ui`
-
-Same WebSocket ↔ OSC bridge as `web_gui.py` but no Python dependency. The engine
-must be started separately. See [`cli_ui/README.md`](cli_ui/README.md).
-
-```bash
-./build/octopus &
-cd cli_ui && cargo build --release
-./cli_ui/target/release/cli_ui
-```
-
-### Python bridge — `web_gui.py`
-
-```bash
-pip3 install websockets
+# The old standalone engine binary + Python bridge still work:
 ./build/octopus &
 python3 web_gui.py
 ```
 
-The HTML control surface is the same for all three — changes to
-`web_gui.html` / `web_gui_nemo.html` apply everywhere. The Rust UI launcher
-requires a rebuild since it embeds them at compile time.
+On Windows the Rust binaries must be built with the `x86_64-pc-windows-gnu`
+target (the C engine is MinGW-built):
+
+```powershell
+rustup target add x86_64-pc-windows-gnu
+cargo build --release --target x86_64-pc-windows-gnu
+```
+
+The HTML control surface (`web_gui.html`, `/modern` → `web_gui_modern.html`)
+is the same everywhere — the Rust hosts embed it at compile time, so changes
+require a rebuild; `web_gui.py` reads it from disk.
 
 ## Persistence
 

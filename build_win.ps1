@@ -1,15 +1,15 @@
-# build_win.ps1 — Build script for the Octopus/Nemo Windows port (MinGW-w64)
+# build_win.ps1 — Build script for the Octopus Windows port (MinGW-w64)
 #
 # Usage (from project root, or anywhere — it finds the script dir):
-#   powershell -ExecutionPolicy Bypass -File build_win.ps1
-#   powershell -ExecutionPolicy Bypass -File build_win.ps1 -Nemo
+#   powershell -ExecutionPolicy Bypass -File build_win.ps1           # standalone engine
+#   powershell -ExecutionPolicy Bypass -File build_win.ps1 -Lib      # static lib (for Rust host)
 #   powershell -ExecutionPolicy Bypass -File build_win.ps1 -Clean
 #
 # Requires: MSYS2 ucrt64 gcc in PATH (C:\msys64\ucrt64\bin)
 #   $env:Path = "C:\msys64\ucrt64\bin;" + $env:Path
 
 param(
-    [switch]$Nemo,
+    [switch]$Lib,
     [switch]$Clean,
     [switch]$Verbose
 )
@@ -40,15 +40,13 @@ if (-not (Test-Path "build")) {
 # Clean
 if ($Clean) {
     Write-Host "Cleaning..." -ForegroundColor Yellow
-    Remove-Item -Path "src\*.o","build\octopus.exe","build\nemo.exe" -ErrorAction SilentlyContinue
-    if (-not $Nemo) { exit 0 }
+    Remove-Item -Path "src\*.o","build\octopus.exe","build\liboctopus.a" -ErrorAction SilentlyContinue
+    if (-not $Lib) { exit 0 }
 }
 
 # Compiler flags — mirror the Makefile
 $CC = "gcc"
-$Target = if ($Nemo) { "build\nemo.exe" } else { "build\octopus.exe" }
-# Try to use an alternate name if the target is locked
-$TargetBase = $Target
+$Target = "build\octopus.exe"
 
 $CFlags = @(
     "-Wall",
@@ -72,22 +70,13 @@ $CFlags = @(
     "-I", "firmware/OCT_OS/_OCT_interrupts"
 )
 
-if ($Nemo) {
-    $CFlags += @(
-        "-DNEMO",
-        "-I", "firmware/NEMO_OS/_NEMO_global",
-        "-I", "firmware/NEMO_OS/_NEMO_Viewer",
-        "-I", "firmware/NEMO_OS/_NEMO_exe_keys",
-        "-I", "firmware/NEMO_OS/_NEMO_exe_rots",
-        "-I", "firmware/NEMO_OS/_NEMO_interrupts"
-    )
-}
-
 if ($Verbose) { $CFlags += "-v" }
 
-# Source files to compile separately
-$Sources = @(
-    "src\main_linux.c",
+# Engine core sources — engine.c is the single TU that includes the firmware.
+# engine_main.c is only linked into the standalone binary, NOT the static lib
+# (the Rust GUI/CLI hosts provide their own main).
+$EngineSources = @(
+    "src\engine.c",
     "src\hal_linux.c",
     "src\midi_winmm.c",
     "src\osc_server.c",
@@ -95,36 +84,65 @@ $Sources = @(
     "src\flash_file.c"
 )
 
+$StandaloneSources = $EngineSources + @("src\engine_main.c")
+
 # Linker flags — statically link winpthread for a portable exe
 $LDLibs = @("-lwinmm", "-lws2_32", "-Wl,-Bstatic,--whole-archive,-lwinpthread,--no-whole-archive,-Bdynamic", "-lm", "-lkernel32", "-lavrt")
 
-Write-Host "Building $Target" -ForegroundColor Green
-Write-Host "  CC: $CC" -ForegroundColor DarkGray
-Write-Host "  Sources: $($Sources.Count) files" -ForegroundColor DarkGray
+function Compile-Sources($Sources) {
+    $Objects = @()
+    $ErrorCount = 0
 
-$Objects = @()
-$ErrorCount = 0
+    foreach ($src in $Sources) {
+        $obj = $src -replace '\.c$', '.o'
+        $Objects += $obj
 
-foreach ($src in $Sources) {
-    $obj = $src -replace '\.c$', '.o'
-    $Objects += $obj
+        $args = @("-c") + $CFlags + @("-o", $obj, $src)
+        Write-Host "  CC $src" -ForegroundColor DarkGray
 
-    $args = @("-c") + $CFlags + @("-o", $obj, $src)
-    Write-Host "  CC $src" -ForegroundColor DarkGray
-
-    $output = & $CC @args 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "  FAIL $src" -ForegroundColor Red
-        $output | ForEach-Object { Write-Host "    $_" -ForegroundColor Red }
-        $ErrorCount++
-    } elseif ($output) {
-        # Show warnings
-        $output | ForEach-Object { Write-Host "    $_" -ForegroundColor Yellow }
+        $output = & $CC @args 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "  FAIL $src" -ForegroundColor Red
+            $output | ForEach-Object { Write-Host "    $_" -ForegroundColor Red }
+            $ErrorCount++
+        } elseif ($output) {
+            # Show warnings
+            $output | ForEach-Object { Write-Host "    $_" -ForegroundColor Yellow }
+        }
     }
+
+    if ($ErrorCount -gt 0) { return $null }
+    return $Objects
 }
 
-if ($ErrorCount -gt 0) {
-    Write-Host "Build failed: $ErrorCount file(s) with errors" -ForegroundColor Red
+if ($Lib) {
+    # ------------------------------------------------------------------
+    # Static library for the Rust hosts (octopus_gui / octopus_cli)
+    # ------------------------------------------------------------------
+    Write-Host "Building build\liboctopus.a" -ForegroundColor Green
+    $Objects = Compile-Sources $EngineSources
+    if ($null -eq $Objects) {
+        Write-Host "Build failed" -ForegroundColor Red
+        exit 1
+    }
+    & ar rcs build\liboctopus.a $Objects
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ar failed" -ForegroundColor Red
+        exit 1
+    }
+    Write-Host ""
+    Write-Host "Build successful: build\liboctopus.a" -ForegroundColor Green
+    exit 0
+}
+
+# ------------------------------------------------------------------
+# Standalone engine binary
+# ------------------------------------------------------------------
+Write-Host "Building $Target" -ForegroundColor Green
+
+$Objects = Compile-Sources ($EngineSources + @("src\engine_main.c"))
+if ($null -eq $Objects) {
+    Write-Host "Build failed" -ForegroundColor Red
     exit 1
 }
 
@@ -135,9 +153,8 @@ $linkOutput = & $CC @linkArgs 2>&1
 if ($LASTEXITCODE -ne 0) {
     # If the target is locked (old process still running), try alternate name
     if (Test-Path $Target) {
-        $altTarget = $TargetBase -replace '\.exe$', '_new.exe'
+        $altTarget = "build\octopus_new.exe"
         Write-Host "  Target locked, trying $altTarget" -ForegroundColor Yellow
-        $linkArgs[-1 - $LDLibs.Count] = $altTarget  # replace target in args
         $linkArgs = $CFlags + $Objects + @("-o", $altTarget) + $LDLibs
         $linkOutput = & $CC @linkArgs 2>&1
         if ($LASTEXITCODE -eq 0) {

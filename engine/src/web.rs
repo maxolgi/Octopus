@@ -1,16 +1,24 @@
+//! Embedded web control surface: HTTP server + WebSocket bridge.
+//!
+//! Same protocol as the old subprocess bridges, but everything is
+//! in-process: WebSocket input is injected into the engine via FFI,
+//! engine output frames (from the C render thread callback) are
+//! broadcast to all WebSocket clients. No UDP loopback, no OSC ports.
+
 use std::sync::Arc;
 
 use futures_util::{SinkExt, StreamExt};
 use serde_json::Value;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::{TcpListener, TcpStream, UdpSocket};
+use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::broadcast;
+use tokio::sync::mpsc::UnboundedReceiver;
 use tokio_tungstenite::tungstenite::Message;
 
-const ENGINE_OSC_OUT: u16 = 9000;
+use crate::Engine;
 
 const HTML_OCTOPUS: &str = include_str!("../../web_gui.html");
-const HTML_NEMO: &str = include_str!("../../web_gui_nemo.html");
+const HTML_MODERN: &str = include_str!("../../web_gui_modern.html");
 
 // ============================================================
 // OSC pack / unpack
@@ -96,7 +104,10 @@ fn osc_unpack(data: &[u8]) -> (String, Vec<Value>) {
                     ]) as usize;
                     pos += 4;
                     let end = (pos + blen).min(data.len());
-                    let hex: String = data[pos..end].iter().map(|b| format!("{:02x}", b)).collect();
+                    let hex: String = data[pos..end]
+                        .iter()
+                        .map(|b| format!("{:02x}", b))
+                        .collect();
                     args.push(Value::from(hex));
                     pos += (blen + 3) & !3;
                 }
@@ -121,7 +132,7 @@ fn osc_unpack(data: &[u8]) -> (String, Vec<Value>) {
 // HTTP server
 // ============================================================
 
-async fn handle_http(mut stream: TcpStream, html: Arc<&str>, nemo_html: Arc<&str>) {
+async fn handle_http(mut stream: TcpStream, html: Arc<&str>, modern_html: Arc<&str>) {
     let mut buf = [0u8; 2048];
     let n = match stream.read(&mut buf).await {
         Ok(n) if n > 0 => n,
@@ -135,8 +146,8 @@ async fn handle_http(mut stream: TcpStream, html: Arc<&str>, nemo_html: Arc<&str
         .and_then(|line| line.split_whitespace().nth(1))
         .unwrap_or("/");
 
-    let content = if path == "/nemo" || path == "/nemo/" {
-        Some(&**nemo_html)
+    let content = if path == "/modern" || path == "/modern/" {
+        Some(&**modern_html)
     } else if path == "/" || path == "/index.html" {
         Some(&**html)
     } else {
@@ -159,12 +170,7 @@ async fn handle_http(mut stream: TcpStream, html: Arc<&str>, nemo_html: Arc<&str
 // WebSocket handler
 // ============================================================
 
-async fn handle_websocket(
-    stream: TcpStream,
-    udp: Arc<UdpSocket>,
-    tx: broadcast::Sender<String>,
-    engine_addr: String,
-) {
+async fn handle_websocket(stream: TcpStream, engine: Arc<Engine>, tx: broadcast::Sender<String>) {
     let ws_stream = match tokio_tungstenite::accept_async(stream).await {
         Ok(s) => s,
         Err(_) => return,
@@ -179,13 +185,13 @@ async fn handle_websocket(
                 match msg {
                     Some(Ok(Message::Text(text))) => {
                         if let Some(p) = parse_ws_command(&text) {
-                            let _ = udp.send_to(&p, &engine_addr).await;
+                            engine.send_osc(&p);
                         }
                     }
                     Some(Ok(Message::Binary(data))) => {
                         if let Ok(text) = String::from_utf8(data.to_vec()) {
                             if let Some(p) = parse_ws_command(&text) {
-                                let _ = udp.send_to(&p, &engine_addr).await;
+                                engine.send_osc(&p);
                             }
                         }
                     }
@@ -215,7 +221,10 @@ fn parse_ws_command(text: &str) -> Option<Vec<u8>> {
         "key" => {
             let idx = cmd.get("index").and_then(|v| v.as_i64()).unwrap_or(0) as i32;
             let press = cmd.get("press").and_then(|v| v.as_bool()).unwrap_or(true);
-            Some(osc_pack("/key", &[OscArg::Int(idx), OscArg::Int(if press { 1 } else { 0 })]))
+            Some(osc_pack(
+                "/key",
+                &[OscArg::Int(idx), OscArg::Int(if press { 1 } else { 0 })],
+            ))
         }
         "rotary" => {
             let idx = cmd.get("index").and_then(|v| v.as_i64()).unwrap_or(0) as i32;
@@ -223,7 +232,11 @@ fn parse_ws_command(text: &str) -> Option<Vec<u8>> {
             Some(osc_pack("/rotary", &[OscArg::Int(idx), OscArg::Int(dir)]))
         }
         "transport" => {
-            let s = cmd.get("cmd").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let s = cmd
+                .get("cmd")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
             Some(osc_pack("/transport", &[OscArg::Str(s)]))
         }
         "tempo" => {
@@ -234,23 +247,21 @@ fn parse_ws_command(text: &str) -> Option<Vec<u8>> {
             let lvl = cmd.get("level").and_then(|v| v.as_i64()).unwrap_or(0) as i32;
             Some(osc_pack("/zoom", &[OscArg::Int(lvl)]))
         }
+        "save" => Some(osc_pack("/save", &[])),
         "quit" => Some(osc_pack("/quit", &[])),
         _ => None,
     }
 }
 
 // ============================================================
-// OSC listener (engine -> WebSocket clients)
+// Engine frame pump (C render callback -> broadcast)
 // ============================================================
 
-async fn osc_listener(udp: Arc<UdpSocket>, tx: broadcast::Sender<String>) {
-    let mut buf = [0u8; 4096];
-    loop {
-        if let Ok((n, _)) = udp.recv_from(&mut buf).await {
-            let (address, args) = osc_unpack(&buf[..n]);
-            let msg = serde_json::json!({"address": address, "args": args}).to_string();
-            let _ = tx.send(msg);
-        }
+async fn frame_pump(mut frames: UnboundedReceiver<Vec<u8>>, tx: broadcast::Sender<String>) {
+    while let Some(bytes) = frames.recv().await {
+        let (address, args) = osc_unpack(&bytes);
+        let msg = serde_json::json!({"address": address, "args": args}).to_string();
+        let _ = tx.send(msg);
     }
 }
 
@@ -263,64 +274,57 @@ pub struct WebServer {
 }
 
 impl WebServer {
-    pub fn start(engine_osc_in: u16, http_port: u16, ws_port: u16, engine_host: &str) -> Result<Self, String> {
+    pub fn start(engine: Arc<Engine>, http_port: u16, ws_port: u16) -> Result<Self, String> {
         let runtime = tokio::runtime::Runtime::new().map_err(|e| e.to_string())?;
 
-        let (http_listener, ws_listener, udp) = runtime.block_on(async {
+        let (http_listener, ws_listener) = runtime.block_on(async {
             let http = TcpListener::bind(format!("0.0.0.0:{}", http_port))
                 .await
                 .map_err(|e| format!("HTTP bind: {}", e))?;
             let ws = TcpListener::bind(format!("0.0.0.0:{}", ws_port))
                 .await
                 .map_err(|e| format!("WS bind: {}", e))?;
-            let udp = UdpSocket::bind(format!("0.0.0.0:{}", ENGINE_OSC_OUT))
-                .await
-                .map_err(|e| format!("OSC UDP bind: {}", e))?;
-            Ok::<_, String>((http, ws, udp))
+            Ok::<_, String>((http, ws))
         })?;
 
         let html = Arc::new(HTML_OCTOPUS);
-        let nemo_html = Arc::new(HTML_NEMO);
-        let udp = Arc::new(udp);
+        let modern_html = Arc::new(HTML_MODERN);
         let (tx, _) = broadcast::channel::<String>(256);
-        let engine_addr = format!("{}:{}", engine_host, engine_osc_in);
+        let frames = crate::take_frame_receiver();
 
         // HTTP server
         {
             let html = html.clone();
-            let nemo = nemo_html.clone();
+            let modern = modern_html.clone();
             runtime.spawn(async move {
                 loop {
                     if let Ok((stream, _)) = http_listener.accept().await {
                         let html = html.clone();
-                        let nemo = nemo.clone();
-                        tokio::spawn(handle_http(stream, html, nemo));
+                        let modern = modern.clone();
+                        tokio::spawn(handle_http(stream, html, modern));
                     }
                 }
             });
         }
 
-        // OSC listener
+        // Engine output frames -> WebSocket broadcast
         {
-            let udp = udp.clone();
             let tx = tx.clone();
             runtime.spawn(async move {
-                osc_listener(udp, tx).await;
+                frame_pump(frames, tx).await;
             });
         }
 
         // WebSocket server
         {
-            let udp = udp.clone();
+            let engine = engine.clone();
             let tx = tx.clone();
-            let engine_addr = engine_addr.clone();
             runtime.spawn(async move {
                 loop {
                     if let Ok((stream, _)) = ws_listener.accept().await {
-                        let udp = udp.clone();
+                        let engine = engine.clone();
                         let tx = tx.clone();
-                        let addr = engine_addr.clone();
-                        tokio::spawn(handle_websocket(stream, udp, tx, addr));
+                        tokio::spawn(handle_websocket(stream, engine, tx));
                     }
                 }
             });
@@ -328,7 +332,6 @@ impl WebServer {
 
         eprintln!("Web GUI: http://localhost:{}", http_port);
         eprintln!("WebSocket: ws://localhost:{}", ws_port);
-        eprintln!("OSC bridge: {}:{} -> recv on 0.0.0.0:{}", engine_host, engine_osc_in, ENGINE_OSC_OUT);
 
         Ok(Self {
             runtime: Some(runtime),

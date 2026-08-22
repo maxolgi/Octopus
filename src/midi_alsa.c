@@ -365,6 +365,59 @@ int midi_get_client_id(void) {
     return snd_seq_client_id(seq_handle);
 }
 
+/* Enumerate available devices for the in-process GUI picker.
+ * Iterates writable (output) or readable (input) ports; idx 0,1,2,...
+ * Returns the device id (client*256+port) and fills name, or -1 when
+ * idx runs past the end. */
+int midi_enum_devices(int is_input, int idx, char *name, int name_len) {
+    snd_seq_t *tmp;
+    int count = 0;
+    int result = -1;
+    unsigned int want_cap, other_cap;
+
+    if (snd_seq_open(&tmp, "default", SND_SEQ_OPEN_DUPLEX, 0) < 0) return -1;
+
+    want_cap = is_input ? SND_SEQ_PORT_CAP_SUBS_READ : SND_SEQ_PORT_CAP_SUBS_WRITE;
+    other_cap = is_input ? SND_SEQ_PORT_CAP_SUBS_WRITE : SND_SEQ_PORT_CAP_SUBS_READ;
+
+    {
+        snd_seq_client_info_t *cinfo;
+        snd_seq_port_info_t *pinfo;
+        int self_client = snd_seq_client_id(tmp);
+
+        snd_seq_client_info_alloca(&cinfo);
+        snd_seq_port_info_alloca(&pinfo);
+        snd_seq_client_info_set_client(cinfo, -1);
+
+        while (snd_seq_query_next_client(tmp, cinfo) >= 0 && result < 0) {
+            int client = snd_seq_client_info_get_client(cinfo);
+            if (client == self_client || client == 0) continue;
+            {
+                const char *cname = snd_seq_client_info_get_name(cinfo);
+                snd_seq_port_info_set_client(pinfo, client);
+                snd_seq_port_info_set_port(pinfo, -1);
+                while (snd_seq_query_next_port(tmp, pinfo) >= 0) {
+                    int port = snd_seq_port_info_get_port(pinfo);
+                    unsigned int caps = snd_seq_port_info_get_capability(pinfo);
+                    if ((caps & want_cap) && !(caps & SND_SEQ_PORT_CAP_NO_EXPORT)
+                        && !(caps & other_cap)) {
+                        if (count == idx) {
+                            snprintf(name, name_len, "%s:%d %s", cname, port,
+                                     snd_seq_port_info_get_name(pinfo));
+                            result = client * 256 + port;
+                            break;
+                        }
+                        count++;
+                    }
+                }
+            }
+        }
+    }
+
+    snd_seq_close(tmp);
+    return result;
+}
+
 void midi_cleanup(void) {
     if (!seq_handle) return;
 

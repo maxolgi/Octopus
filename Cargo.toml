@@ -1,0 +1,13 @@
+[workspace]
+resolver = "2"
+members = ["engine", "gui", "cli"]
+
+[workspace.package]
+version = "0.2.0"
+edition = "2021"
+
+[profile.release]
+opt-level = 2
+strip = true
+lto = true
+codegen-units = 1
