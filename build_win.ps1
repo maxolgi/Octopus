@@ -3,7 +3,7 @@
 # Usage (from project root, or anywhere — it finds the script dir):
 #   powershell -ExecutionPolicy Bypass -File build_win.ps1           # standalone engine
 #   powershell -ExecutionPolicy Bypass -File build_win.ps1 -Lib      # static lib (for Rust host)
-#   powershell -ExecutionPolicy Bypass -File build_win.ps1 -Clean
+#   powershell -ExecutionPolicy Bypass -File build_win.ps1 -Clean    # clean, then build
 #
 # Requires: MSYS2 ucrt64 gcc in PATH (C:\msys64\ucrt64\bin)
 #   $env:Path = "C:\msys64\ucrt64\bin;" + $env:Path
@@ -41,7 +41,6 @@ if (-not (Test-Path "build")) {
 if ($Clean) {
     Write-Host "Cleaning..." -ForegroundColor Yellow
     Remove-Item -Path "src\*.o","build\octopus.exe","build\liboctopus.a" -ErrorAction SilentlyContinue
-    if (-not $Lib) { exit 0 }
 }
 
 # Compiler flags — mirror the Makefile
@@ -97,10 +96,10 @@ function Compile-Sources($Sources) {
         $obj = $src -replace '\.c$', '.o'
         $Objects += $obj
 
-        $args = @("-c") + $CFlags + @("-o", $obj, $src)
+        $ccArgs = @("-c") + $CFlags + @("-o", $obj, $src)
         Write-Host "  CC $src" -ForegroundColor DarkGray
 
-        $output = & $CC @args 2>&1
+        $output = & $CC @ccArgs 2>&1
         if ($LASTEXITCODE -ne 0) {
             Write-Host "  FAIL $src" -ForegroundColor Red
             $output | ForEach-Object { Write-Host "    $_" -ForegroundColor Red }
