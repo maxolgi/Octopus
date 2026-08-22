@@ -2261,14 +2261,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "octopus-cli"
-version = "0.2.0"
-dependencies = [
- "ctrlc",
- "octopus-engine",
-]
-
-[[package]]
 name = "octopus-engine"
 version = "0.2.0"
 dependencies = [
@@ -2282,8 +2274,10 @@ dependencies = [
 name = "octopus-gui"
 version = "0.2.0"
 dependencies = [
+ "ctrlc",
  "eframe",
  "octopus-engine",
+ "winapi",
 ]
 
 [[package]]

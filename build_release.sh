@@ -8,9 +8,9 @@ echo "=== Building Octopus engine (C: standalone + static lib) ==="
 make clean && make || { echo "Engine build failed"; exit 1; }
 cp build/octopus dist/
 
-echo "=== Building octopus_gui + octopus_cli (Rust, in-process engine) ==="
+echo "=== Building octopus_gui (Rust, in-process engine; --no-gui for headless) ==="
 cargo build --release
-cp target/release/octopus_gui target/release/octopus_cli dist/
+cp target/release/octopus_gui dist/
 
 echo ""
 echo "=== Build complete ==="

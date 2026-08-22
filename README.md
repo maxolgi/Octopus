@@ -14,11 +14,11 @@ git clone --recurse-submodules <repo-url>
 cd Octopus
 
 # Build everything (requires: gcc, libasound2-dev, Rust)
-# produces build/octopus + octopus_gui + octopus_cli
+# produces build/octopus + octopus_gui
 cargo build --release
 
 # Run headless (engine + web control surface)
-./target/release/octopus_cli
+./target/release/octopus_gui --no-gui
 
 # Open in browser
 # http://localhost:8088
@@ -44,7 +44,8 @@ POSIX semaphores, and timerfd. No original firmware logic is modified (only
 
 | File | Purpose |
 |---|---|
-| `src/main_linux.c` | Entry point, sequencer thread, auto-save/load |
+| `src/engine.c` | Engine core (single firmware TU), sequencer thread, hosted API |
+| `src/engine_main.c` | Standalone entry point (`build/octopus`) |
 | `src/hal_linux.c` | eCos API shim (pthread, pipe, timerfd) |
 | `src/midi_alsa.c` | ALSA sequencer I/O (2 out ports + 1 in port) |
 | `src/osc_server.c` | OSC UDP input server (dependency-free) |
@@ -111,27 +112,27 @@ The engine can be driven from a browser-based control surface in two ways:
 | Host | Type | Engine location | HTML files |
 |---|---|---|---|
 | **`octopus_gui`** | Native desktop app (egui) with MIDI device picker | In-process (statically linked) | Embedded at compile time |
-| **`octopus_cli`** | Headless CLI | In-process (statically linked) | Embedded at compile time |
+| **`octopus_gui --no-gui`** | Headless (engine + web server, Ctrl+C to quit) | In-process (statically linked) | Embedded at compile time |
 | `web_gui.py` | Python bridge (legacy) | Separate process (`./build/octopus`) | Reads from disk |
 
-Both Rust hosts are built from the same Cargo workspace (`engine/`, `gui/`,
-`cli/`) and share one code path: the `octopus-engine` crate hosts the C engine
-in-process (no subprocess, no OSC UDP loopback on port 9000), serves the HTML
-control surface on port 8088 and bridges WebSocket ↔ engine directly.
+Built from the Cargo workspace (`engine/`, `gui/`): the `octopus-engine` crate
+hosts the C engine in-process (no subprocess, no OSC UDP loopback on port
+9000), serves the HTML control surface on port 8088 and bridges WebSocket ↔
+engine directly.
 
 ```bash
 # Requires gcc + libasound2-dev (the build compiles the C engine into
 # build/liboctopus.a automatically via engine/build.rs)
 cargo build --release
-./target/release/octopus_gui        # desktop app: pick MIDI ports, Start
-./target/release/octopus_cli        # headless: engine + web server
+./target/release/octopus_gui             # desktop app: pick MIDI ports, Start
+./target/release/octopus_gui --no-gui    # headless: engine + web server
 
 # The old standalone engine binary + Python bridge still work:
 ./build/octopus &
 python3 web_gui.py
 ```
 
-On Windows the Rust binaries must be built with the `x86_64-pc-windows-gnu`
+On Windows `octopus_gui` must be built with the `x86_64-pc-windows-gnu`
 target (the C engine is MinGW-built):
 
 ```powershell

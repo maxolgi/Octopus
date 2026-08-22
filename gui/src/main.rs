@@ -2,9 +2,12 @@
 
 //! Octopus GUI — hosts the C engine in-process and serves the web
 //! control surface. No subprocess, no OSC port juggling.
+//!
+//! `--no-gui` runs headless (engine + web server, Ctrl+C to quit).
 
 use eframe::egui;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use octopus_engine::web::WebServer;
@@ -16,6 +19,157 @@ fn default_state_path() -> PathBuf {
         .and_then(|p| p.parent().map(|d| d.to_path_buf()))
         .unwrap_or_else(|| PathBuf::from("."))
         .join("octopus_state.bin")
+}
+
+// ============================================================
+// Headless mode (--no-gui)
+// ============================================================
+
+fn attach_console() {
+    // Release builds use windows_subsystem = "windows" (no console).
+    // When launched from a terminal, attach to its console so
+    // engine output and Ctrl+C work in --no-gui mode.
+    #[cfg(windows)]
+    unsafe {
+        const ATTACH_PARENT_PROCESS: u32 = 0xFFFFFFFF;
+        if winapi::um::consoleapi::AttachConsole(ATTACH_PARENT_PROCESS) != 0 {
+            winapi::um::processenv::SetStdHandle(winapi::um::winbase::STD_OUTPUT_HANDLE, {
+                let handle =
+                    winapi::um::processenv::GetStdHandle(winapi::um::winbase::STD_OUTPUT_HANDLE);
+                handle
+            });
+            // Re-open C-level stdout/stderr so fprintf(stderr) in the C
+            // engine lands in the console.
+            let mode = "w";
+            libc_freopen("CONOUT$", mode, 1);
+            libc_freopen("CONOUT$", mode, 2);
+        }
+    }
+}
+
+#[cfg(windows)]
+unsafe fn libc_freopen(path: &str, mode: &str, fd: i32) {
+    use std::ffi::CString;
+    let cpath = CString::new(path).unwrap();
+    let cmode = CString::new(mode).unwrap();
+    // _wfreopen_s-style reopen via libc's freopen on the raw fds.
+    // The C runtime fds 1/2 map to stdout/stderr.
+    extern "C" {
+        fn _wfreopen(
+            path: *const u16,
+            mode: *const u8,
+            file: *mut std::ffi::c_void,
+        ) -> *mut std::ffi::c_void;
+        fn __acrt_iob_func(fd: i32) -> *mut std::ffi::c_void;
+    }
+    let mut wide: Vec<u16> = path.encode_utf16().collect();
+    wide.push(0);
+    let _ = _wfreopen(wide.as_ptr(), cmode.as_ptr(), __acrt_iob_func(fd));
+}
+
+fn print_help() {
+    eprintln!("Usage: octopus_gui [options]");
+    eprintln!();
+    eprintln!("Options:");
+    eprintln!("  --no-gui         Headless: engine + web server, no window (Ctrl+C to quit)");
+    eprintln!("  --osc-port <n>   OSC UDP input port (default: 8000, 0 disables)");
+    eprintln!("  --http-port <n>  Web GUI HTTP port (default: 8088, WS = port+1)");
+    eprintln!("  --out-a <id>     MIDI output A device ID");
+    eprintln!("  --out-b <id>     MIDI output B device ID");
+    eprintln!("  --in <id>        MIDI input device ID");
+    eprintln!("  --state <path>   State file (default: octopus_state.bin next to the exe)");
+    eprintln!("  --autosave       Save state on exit");
+    eprintln!("  --list-midi      List MIDI devices and exit");
+    eprintln!("  --help           Show this help");
+}
+
+fn run_headless(args: &[String]) -> i32 {
+    let mut opts = Options::default();
+    opts.state_file = Some(default_state_path());
+    let mut http_port: u16 = 8088;
+    let mut autosave = false;
+
+    let mut i = 0;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--osc-port" if i + 1 < args.len() => {
+                opts.osc_udp_port = args[i + 1].parse().unwrap_or(8000);
+                i += 1;
+            }
+            "--http-port" if i + 1 < args.len() => {
+                http_port = args[i + 1].parse().unwrap_or(8088);
+                i += 1;
+            }
+            "--out-a" if i + 1 < args.len() => {
+                opts.out_a = args[i + 1].parse().unwrap_or(-1);
+                i += 1;
+            }
+            "--out-b" if i + 1 < args.len() => {
+                opts.out_b = args[i + 1].parse().unwrap_or(-1);
+                i += 1;
+            }
+            "--in" if i + 1 < args.len() => {
+                opts.midi_in = args[i + 1].parse().unwrap_or(-1);
+                i += 1;
+            }
+            "--state" if i + 1 < args.len() => {
+                opts.state_file = Some(PathBuf::from(&args[i + 1]));
+                i += 1;
+            }
+            "--autosave" => autosave = true,
+            _ => {}
+        }
+        i += 1;
+    }
+
+    let engine = match Engine::start(&opts) {
+        Ok(e) => Arc::new(e),
+        Err(e) => {
+            eprintln!("Failed to start engine: {}", e);
+            return 1;
+        }
+    };
+
+    let mut web_server = match WebServer::start(engine.clone(), http_port, http_port + 1) {
+        Ok(ws) => ws,
+        Err(e) => {
+            eprintln!("Failed to start web server: {}", e);
+            engine.stop();
+            return 1;
+        }
+    };
+
+    eprintln!("Press Ctrl+C to stop.");
+
+    let should_stop = Arc::new(AtomicBool::new(false));
+    {
+        let should_stop = should_stop.clone();
+        ctrlc::set_handler(move || {
+            eprintln!("\nCaught Ctrl+C, shutting down...");
+            should_stop.store(true, Ordering::SeqCst);
+        })
+        .expect("failed to install signal handler");
+    }
+
+    loop {
+        if should_stop.load(Ordering::SeqCst) {
+            break;
+        }
+        if engine.wants_quit() {
+            eprintln!("\nQuit requested via OSC.");
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(200));
+    }
+
+    eprintln!("Shutting down...");
+    if autosave {
+        engine.save_state();
+    }
+    web_server.stop();
+    engine.stop();
+    eprintln!("Done.");
+    0
 }
 
 struct OctopusApp {
@@ -315,6 +469,33 @@ impl eframe::App for OctopusApp {
 }
 
 fn main() {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+
+    if args.iter().any(|a| a == "--help" || a == "-h") {
+        print_help();
+        return;
+    }
+
+    if args.iter().any(|a| a == "--list-midi" || a == "-l") {
+        let (outs, ins) = octopus_engine::list_midi_devices();
+        println!("MIDI output devices:");
+        println!("  [-1] <none>");
+        for (id, name) in outs {
+            println!("  [{}] {}", id, name);
+        }
+        println!("MIDI input devices:");
+        println!("  [-1] <none>");
+        for (id, name) in ins {
+            println!("  [{}] {}", id, name);
+        }
+        return;
+    }
+
+    if args.iter().any(|a| a == "--no-gui" || a == "--nogui") {
+        attach_console();
+        std::process::exit(run_headless(&args));
+    }
+
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([440.0, 480.0])

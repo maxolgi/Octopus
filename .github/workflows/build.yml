@@ -111,18 +111,18 @@ jobs:
           Copy-Item build\octopus.exe dist\
 
       # ----- Rust hosts (in-process engine; rebuilds liboctopus.a via build.rs)
-      - name: Build Rust binaries (Linux)
+      - name: Build Rust binary (Linux)
         if: runner.os == 'Linux'
         run: |
           cargo build --release
-          cp target/release/octopus_gui target/release/octopus_cli dist/
-          strip dist/octopus dist/octopus_gui dist/octopus_cli
+          cp target/release/octopus_gui dist/
+          strip dist/octopus dist/octopus_gui
 
-      - name: Build Rust binaries (Windows)
+      - name: Build Rust binary (Windows)
         if: runner.os == 'Windows'
         run: |
           cargo build --release --target x86_64-pc-windows-gnu
-          cp target/x86_64-pc-windows-gnu/release/octopus_gui.exe target/x86_64-pc-windows-gnu/release/octopus_cli.exe dist/
+          cp target/x86_64-pc-windows-gnu/release/octopus_gui.exe dist/
         shell: bash
 
       - name: Upload dist
@@ -157,10 +157,8 @@ jobs:
           # Individual downloadable executables, no archives.
           cp artifacts/octopus-linux-x64/octopus      release/octopus-linux-x64
           cp artifacts/octopus-linux-x64/octopus_gui  release/octopus_gui-linux-x64
-          cp artifacts/octopus-linux-x64/octopus_cli  release/octopus_cli-linux-x64
-          cp artifacts/octopus-windows-x64/octopus.exe      release/octopus-windows-x64.exe
-          cp artifacts/octopus-windows-x64/octopus_gui.exe  release/octopus_gui-windows-x64.exe
-          cp artifacts/octopus-windows-x64/octopus_cli.exe  release/octopus_cli-windows-x64.exe
+          cp artifacts/octopus-windows-x64/octopus.exe     release/octopus-windows-x64.exe
+          cp artifacts/octopus-windows-x64/octopus_gui.exe release/octopus_gui-windows-x64.exe
 
       - name: Set release metadata
         id: meta

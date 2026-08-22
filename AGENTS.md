@@ -37,11 +37,11 @@ powershell -ExecutionPolicy Bypass -File build_win.ps1 -Clean
 ```
 Requires: MSYS2 ucrt64 gcc in PATH (`C:\msys64\ucrt64\bin`). Links: `-lwinmm -lws2_32 -lwinpthread -lm -lkernel32 -lavrt`.
 
-### Rust workspace (octopus_gui + octopus_cli)
+### Rust workspace (octopus_gui; --no-gui for headless)
 ```bash
-cargo build --release    # produces octopus_gui and octopus_cli
+cargo build --release    # produces octopus_gui (windowed + --no-gui headless mode)
 ```
-Root Cargo workspace: `engine/` (FFI wrapper + web server, compiles the C engine into `build/liboctopus.a` via `build.rs`), `gui/` (egui desktop app), `cli/` (headless). The engine runs **in-process** — no subprocess, no OSC UDP loopback on port 9000: WebSocket input is injected via `oct_send_osc()`, engine output frames (MIR/transport) arrive through a C callback (`oct_set_frame_callback`) and are broadcast to WebSocket clients. The HTML control surface is embedded via `include_str!` (`/` → web_gui.html, `/modern` → web_gui_modern.html).
+Root Cargo workspace: `engine/` (FFI wrapper + web server, compiles the C engine into `build/liboctopus.a` via `build.rs`), `gui/` (egui desktop app with `--no-gui` headless mode). The engine runs **in-process** — no subprocess, no OSC UDP loopback on port 9000: WebSocket input is injected via `oct_send_osc()`, engine output frames (MIR/transport) arrive through a C callback (`oct_set_frame_callback`) and are broadcast to WebSocket clients. The HTML control surface is embedded via `include_str!` (`/` → web_gui.html, `/modern` → web_gui_modern.html).
 
 On Windows the Rust binaries must be built with the `x86_64-pc-windows-gnu` target (the C objects are MinGW-built): `rustup target add x86_64-pc-windows-gnu && cargo build --release --target x86_64-pc-windows-gnu`.
 
@@ -50,7 +50,7 @@ On Windows the Rust binaries must be built with the `x86_64-pc-windows-gnu` targ
 powershell -ExecutionPolicy Bypass -File build_release.ps1   # Windows
 bash build_release.sh                                        # Linux
 ```
-Outputs to `dist/`: `octopus`, `octopus_gui`, `octopus_cli`, HTML files.
+Outputs to `dist/`: `octopus`, `octopus_gui`, HTML files.
 
 ## Architecture: single translation unit
 
@@ -116,11 +116,11 @@ Key dispatch acquires `cyg_scheduler_lock()` / `cyg_scheduler_unlock()` to prote
 
 Two ways to drive the engine from the browser HTML control surface (`web_gui.html`, `/modern` → `web_gui_modern.html`):
 
-### 1. Rust hosts (in-process engine) — `octopus_gui` / `octopus_cli`
+### 1. Rust host (in-process engine) — `octopus_gui`
 ```bash
 cargo build --release
-./target/release/octopus_gui    # egui desktop app: MIDI picker + Start/Stop
-./target/release/octopus_cli    # headless: engine + web server, Ctrl+C to quit
+./target/release/octopus_gui             # egui desktop app: MIDI picker + Start
+./target/release/octopus_gui --no-gui    # headless: engine + web server, Ctrl+C to quit
 ```
 Both serve HTTP 8088 + WebSocket 8089 with the HTML embedded via `include_str!`. WebSocket input goes straight into the engine via `oct_send_osc()`; engine output frames arrive via the C frame callback and are broadcast to WebSocket clients. The OSC UDP input listener (port 8000) still runs in-process for external control surfaces and test scripts. The GUI starts the engine automatically on launch and can switch MIDI devices live via OSC (`/midi/out_a` etc.); the engine is one-shot per process, so after Stop the app must be relaunched.
 
@@ -164,7 +164,7 @@ No automated test suite. Tests are manual Python integration scripts in `tests/`
 python3 tests/test_osc.py            # basic OSC: transport, step toggle, tempo
 python3 tests/test_phase4.py         # rotary encoders, track attributes, zoom
 ```
-These send OSC to port 8000 and optionally listen on 9000 for MIR frames (standalone engine only — the hosted Rust binaries deliver frames via WebSocket instead). `octopus_cli` runs the same UDP listener in-process, so the tests work against it too. Verify MIDI output with `aseqdump -p <client>:0` (Linux) or a MIDI monitor (Windows).
+These send OSC to port 8000 and optionally listen on 9000 for MIR frames (standalone engine only — the hosted Rust binaries deliver frames via WebSocket instead). `octopus_gui --no-gui` runs the same UDP listener in-process, so the tests work against it too. Verify MIDI output with `aseqdump -p <client>:0` (Linux) or a MIDI monitor (Windows).
 
 ## Key reference docs in repo
 

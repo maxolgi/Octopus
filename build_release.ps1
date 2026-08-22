@@ -17,10 +17,9 @@ Write-Host "=== Building Octopus engine (C: standalone + static lib) ===" -Foreg
 & .\build_win.ps1 -Clean
 Copy-Item "build\octopus.exe" "dist\" -Force
 
-Write-Host "=== Building octopus_gui + octopus_cli (Rust, in-process engine) ===" -ForegroundColor Green
+Write-Host "=== Building octopus_gui (Rust, in-process engine; --no-gui for headless) ===" -ForegroundColor Green
 cargo build --release --target x86_64-pc-windows-gnu
 Copy-Item "target\x86_64-pc-windows-gnu\release\octopus_gui.exe" "dist\" -Force
-Copy-Item "target\x86_64-pc-windows-gnu\release\octopus_cli.exe" "dist\" -Force
 
 Write-Host ""
 Write-Host "=== Build complete ===" -ForegroundColor Green
