@@ -134,7 +134,7 @@ jobs:
 
   # ---------------------------------------------------------------------------
   # 3. Publish a GitHub Release for every successful build.
-  #    - Push to main  → prerelease tagged dev-<short_sha>
+  #    - Push to main  → prerelease tagged dev-<short_sha>, marked "latest"
   #    - v* tag push    → stable release tagged <version>, marked "latest"
   # ---------------------------------------------------------------------------
   release:
@@ -176,7 +176,7 @@ jobs:
             echo "tag=dev-${short}"         >> "$GITHUB_OUTPUT"
             echo "name=Dev ${short}"        >> "$GITHUB_OUTPUT"
             echo "prerelease=true"          >> "$GITHUB_OUTPUT"
-            echo "make_latest=false"        >> "$GITHUB_OUTPUT"
+            echo "make_latest=true"         >> "$GITHUB_OUTPUT"
           fi
 
       - uses: softprops/action-gh-release@v3
