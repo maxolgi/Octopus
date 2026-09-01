@@ -13,4 +13,4 @@ eframe = "0.29"
 ctrlc = "3"
 
 [target.'cfg(windows)'.dependencies]
-winapi = { version = "0.3", features = ["consoleapi", "processenv", "winbase"] }
+winapi = { version = "0.3", features = ["processenv", "winbase"] }

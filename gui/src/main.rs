@@ -31,8 +31,12 @@ fn attach_console() {
     // engine output and Ctrl+C work in --no-gui mode.
     #[cfg(windows)]
     unsafe {
-        const ATTACH_PARENT_PROCESS: u32 = 0xFFFFFFFF;
-        if winapi::um::consoleapi::AttachConsole(ATTACH_PARENT_PROCESS) != 0 {
+        // AttachConsole is not exposed by winapi 0.3 — declare it directly.
+        extern "system" {
+            fn AttachConsole(dw_process_id: u32) -> i32;
+        }
+        const ATTACH_PARENT_PROCESS: u32 = 0xFFFF_FFFF;
+        if AttachConsole(ATTACH_PARENT_PROCESS) != 0 {
             winapi::um::processenv::SetStdHandle(winapi::um::winbase::STD_OUTPUT_HANDLE, {
                 let handle =
                     winapi::um::processenv::GetStdHandle(winapi::um::winbase::STD_OUTPUT_HANDLE);
@@ -49,22 +53,21 @@ fn attach_console() {
 
 #[cfg(windows)]
 unsafe fn libc_freopen(path: &str, mode: &str, fd: i32) {
-    use std::ffi::CString;
-    let cpath = CString::new(path).unwrap();
-    let cmode = CString::new(mode).unwrap();
     // _wfreopen_s-style reopen via libc's freopen on the raw fds.
     // The C runtime fds 1/2 map to stdout/stderr.
     extern "C" {
         fn _wfreopen(
             path: *const u16,
-            mode: *const u8,
+            mode: *const u16,
             file: *mut std::ffi::c_void,
         ) -> *mut std::ffi::c_void;
         fn __acrt_iob_func(fd: i32) -> *mut std::ffi::c_void;
     }
     let mut wide: Vec<u16> = path.encode_utf16().collect();
     wide.push(0);
-    let _ = _wfreopen(wide.as_ptr(), cmode.as_ptr(), __acrt_iob_func(fd));
+    let mut wmode: Vec<u16> = mode.encode_utf16().collect();
+    wmode.push(0);
+    let _ = _wfreopen(wide.as_ptr(), wmode.as_ptr(), __acrt_iob_func(fd));
 }
 
 fn print_help() {
