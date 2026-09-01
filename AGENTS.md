@@ -168,7 +168,6 @@ These send OSC to port 8000 and optionally listen on 9000 for MIR frames (standa
 
 ## Key reference docs in repo
 
-- `plan.md` — full architecture, threading model, timing model, module specs, implementation phases
 - `keymap.md` — complete key/rotary index map, OSC addresses, MIR LED format
 - `octopus.txt` — Genoqs Octopus reference manual (CE v5.30)
 - `README.md` — quick start, OSC namespace, MIDI connections, build targets
