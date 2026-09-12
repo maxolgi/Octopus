@@ -163,8 +163,9 @@ No automated test suite. Tests are manual Python integration scripts in `tests/`
 ./build/octopus &                    # start engine first
 python3 tests/test_osc.py            # basic OSC: transport, step toggle, tempo
 python3 tests/test_phase4.py         # rotary encoders, track attributes, zoom
+python3 tests/test_manual.py         # assertion-based behavior suite (11 tests) vs the running hosted engine
 ```
-These send OSC to port 8000 and optionally listen on 9000 for MIR frames (standalone engine only — the hosted Rust binaries deliver frames via WebSocket instead). `octopus_gui --no-gui` runs the same UDP listener in-process, so the tests work against it too. Verify MIDI output with `aseqdump -p <client>:0` (Linux) or a MIDI monitor (Windows).
+These send OSC to port 8000 and optionally listen on 9000 for MIR frames (standalone engine only — the hosted Rust binaries deliver frames via WebSocket instead). `octopus_gui --no-gui` runs the same UDP listener in-process, so the tests work against it too. `tests/test_manual.py` (+ `tests/octopus_harness.py`) instead drives a *running* `octopus_gui` instance: OSC in on UDP 8000, MIR/transport out on WS 8089; it opens with a full Grid Clear (wipes the instance's pattern) and asserts on blink-safe window-OR LED states. Known limitation: the GRID-zoom step toggle is play-mode dependent (see the file header) and is left as a manual behavior. Verify MIDI output with `aseqdump -p <client>:0` (Linux) or a MIDI monitor (Windows).
 
 ## Key reference docs in repo
 
